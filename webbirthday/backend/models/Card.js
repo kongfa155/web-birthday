@@ -8,6 +8,9 @@ const cardSchema = new mongoose.Schema(
     imgURL: [{ type: String }],
     cardDESC: { type: String },
     fabricEdit: { type: String }, // ✅ Đổi về String
+    designUrl: { type: String },
+    designFormat: { type: String, enum: ["dom"] },
+    previewUrl: { type: String },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     shareEnabled: { type: Boolean, default: false },
     shareTokenHash: { type: String, select: false },

@@ -23,7 +23,7 @@ const TemplateBottomSection = () => {
             <div className={styles.cardTop}>
               <img loading="lazy" decoding="async"
                 src={
-                  template.imgURL?.[0] ||
+                  template.previewUrl || template.imgURL?.[0] ||
                   "/hpbd.png"
                 }
                 alt={template.name}
@@ -47,4 +47,3 @@ const TemplateBottomSection = () => {
 };
 
 export default TemplateBottomSection;
- 

@@ -1,0 +1,100 @@
+.viewerRoot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.stageViewport {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scaledFrame {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(241, 245, 249, 0.92);
+}
+
+.stateCard {
+  max-width: 480px;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  color: #1e293b;
+}
+
+.stateTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.stateMessage {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.retryButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  background: #1d4ed8;
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  border: 3px solid #cbd5e1;
+  border-top-color: #2563eb;
+  animation: domViewerSpin 0.8s linear infinite;
+}
+
+@keyframes domViewerSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

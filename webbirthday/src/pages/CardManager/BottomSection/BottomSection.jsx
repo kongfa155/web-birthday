@@ -39,7 +39,7 @@ export default function BottomSection() {
           {cards.map((card) => (
             <article key={card._id} className={styles.rectCard}>
               <div className={styles.cardTop}>
-                <img loading="lazy" decoding="async" src={card.imgURL?.[0] || "/hpbd.png"} alt={card.cardName} />
+                <img loading="lazy" decoding="async" src={card.previewUrl || card.imgURL?.[0] || "/hpbd.png"} alt={card.cardName} />
               </div>
               <div className={styles.divider} />
               <div className={styles.cardBottom}>

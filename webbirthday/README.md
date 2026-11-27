@@ -2,6 +2,13 @@
 
 Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
 
+## Editor tạo thiệp
+
+Editor mới dùng React/React DOM 19.3.1, HTML/CSS và Moveable; không cần API key
+hay giấy phép SDK. Có mẫu sinh nhật dựng sẵn, kéo thả, chỉnh chữ/ảnh, lớp,
+undo/redo, thumbnail và xuất PNG. Thiệp Fabric cũ vẫn xem được.
+Xem [cấu hình, dữ liệu, kiểm thử và rollback](docs/EDITOR.md).
+
 ## Cập nhật TU-02: đăng nhập Google
 
 Trang đăng nhập và đăng ký có nút Google, dùng Google Identity Services và Client ID
@@ -106,5 +113,3 @@ Các file ghi chú và helper cũ được giữ để rà soát riêng.
 Trước khi chuẩn hóa, build thành công nhưng lint đã có 40 lỗi. Sau khi bỏ
 hai biến không dùng trong App, lint còn 38 lỗi có sẵn và không phát sinh lỗi mới.
 Các lỗi nghiệp vụ, routing và editor có sẵn cần xử lý trong đợt bảo trì riêng.
-
-

@@ -6,6 +6,7 @@ import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
 import { editableCards, readableCards } from "../utils/cardAccess.js";
 import { parsePage, listPage, CARD_LIST_FIELDS } from "../utils/listPage.js";
+import { DesignInputError, validateDesignRequest, saveDomDesign } from "../utils/designDocument.js";
 
 function parseDesign(value) {
   const design = typeof value === "string" ? JSON.parse(value) : value;
@@ -51,12 +52,19 @@ const CardController = {
         if (typeof req.body.templateId !== "string" || !mongoose.isObjectIdOrHexString(req.body.templateId)) return res.status(400).json({ message: "Mã mẫu không hợp lệ." });
         source = await Template.findById(req.body.templateId);
         if (!source) return res.status(404).json({ message: "Không tìm thấy mẫu thiệp." });
-      } else if (!req.user.isAdmin) {
+      } else if (!req.user.isAdmin && req.body.blank !== true) {
         return res.status(400).json({ message: "Vui lòng chọn mẫu thiệp." });
       }
 
+      const domDesign = validateDesignRequest(req.body);
+
       let fabricURL = source?.fabricEdit;
       let imgURLs = source?.imgURL || imgURL || [];
+      let designFields = source?.designUrl ? {
+        designUrl: source.designUrl, designFormat: source.designFormat, previewUrl: source.previewUrl,
+      } : {};
+      if (source?.designUrl && fabricEdit !== undefined) return res.status(400).json({ message: "Mẫu hiện tại không nhận dữ liệu Fabric." });
+      if (domDesign) designFields = await saveDomDesign(domDesign, req.body.preview);
 
       if (fabricEdit !== undefined) {
         const fabricEditObj =
@@ -78,6 +86,7 @@ const CardController = {
         imgURL: imgURLs,
         cardDESC,
         fabricEdit: fabricURL,
+        ...designFields,
         owner: req.user._id,
         isEditable: true, // mặc định mới tạo là có thể chỉnh sửa
       });
@@ -86,7 +95,7 @@ const CardController = {
 
       res.status(201).json({ message: "Card created", card: newCard });
     } catch (error) {
-      if (error instanceof SyntaxError) return res.status(400).json({ message: "Dữ liệu thiết kế không hợp lệ." });
+      if (error instanceof SyntaxError || error instanceof DesignInputError) return res.status(400).json({ message: error.message });
       res.status(500).json({ message: "Không thể tạo thiệp." });
     }
   },
@@ -104,6 +113,8 @@ const CardController = {
       if (owner && String(owner) !== String(req.user._id)) return res.status(403).json({ message: "Không thể chuyển chủ sở hữu thiệp qua API này." });
       if (typeof isEditable !== "undefined" && typeof isEditable !== "boolean") return res.status(400).json({ message: "Trạng thái thiệp không hợp lệ." });
       if (cardName !== undefined && (typeof cardName !== "string" || !cardName.trim())) return res.status(400).json({ message: "Tên thiệp không hợp lệ." });
+      const domDesign = validateDesignRequest(req.body);
+      if (existing.designUrl && fabricEdit !== undefined) return res.status(400).json({ message: "Thiệp DOM không nhận dữ liệu Fabric." });
       const updatedFields = {};
       for (const [key, value] of Object.entries({ cardName, imgURL, cardDESC })) {
         if (value !== undefined) updatedFields[key] = value;
@@ -113,6 +124,7 @@ const CardController = {
       if (typeof isEditable !== "undefined") {
         updatedFields.isEditable = isEditable;
       }
+      if (domDesign) Object.assign(updatedFields, await saveDomDesign(domDesign, req.body.preview));
 
       // Chỉ xử lý Fabric JSON khi gửi dữ liệu mới
       if (fabricEdit !== undefined) {
@@ -139,7 +151,7 @@ const CardController = {
 
       res.json({ message: "Card updated", card: updatedCard });
     } catch (error) {
-      if (error instanceof SyntaxError) return res.status(400).json({ message: "Dữ liệu thiết kế không hợp lệ." });
+      if (error instanceof SyntaxError || error instanceof DesignInputError) return res.status(400).json({ message: error.message });
       res.status(500).json({ message: "Không thể cập nhật thiệp." });
     }
   },

@@ -8,6 +8,9 @@ const templateSchema = new mongoose.Schema(
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     imgURL: [{ type: String }],
     fabricEdit: { type: String },
+    designUrl: { type: String },
+    designFormat: { type: String, enum: ["dom"] },
+    previewUrl: { type: String },
   },
   { timestamps: true }
 );

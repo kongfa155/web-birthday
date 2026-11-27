@@ -1,165 +1,317 @@
-import "./EditPage.css";
-import { useParams, useNavigate, Link } from "react-router-dom"; // Import Link
-import { FaArrowLeft } from "react-icons/fa"; // Import icon cho nút bấm
-import LayerPanel from "./LayerPanel";
-import PropertiesPanel from "./PropertiesPanel";
-import { useState, useRef, useEffect } from "react";
-import Toolbox from "./Toolbox";
-import WorkSpace from "./WorkSpace";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { FaArrowLeft, FaRedo } from "react-icons/fa";
+import { getCardById } from "../../services/cardService.js";
+import { getTemplateById } from "../../services/templateService.js";
 import {
-  createTemplate,
-  getTemplateById,
-  updateTemplate,
-} from "../../services/templateService";
-import {
-  getCardById,
-  updateCard,
-} from "../../services/cardService";
-import { toast } from "react-toastify";
-
-import { PanelContext } from "./PanelContext";
+  classifyRecordDesign,
+  fetchDesignJson,
+  isDomDesign,
+} from "../../services/designService.js";
+import DomDesignViewer from "../../components/design/DomDesignViewer.jsx";
+import LegacyFabricViewer from "../../components/design/LegacyFabricViewer.jsx";
+import DomEditor from "./DomEditor.jsx";
+import styles from "./EditPage.module.css";
 
 export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
-  const [textDetails, setTextDetails] = useState({
-  text: "Nhập chữ ở đây",
-  fill: "#000000",
-  fontSize: 24,
-  fontWeight: "normal",
-  fontStyle: "normal",
-  underline: false,
-});
-  const navigate = useNavigate();
   const { id } = useParams();
-  const mode = editorMode;
-  const [imageDetails, setImageDetails] = useState({
-  url: "",
-  scale: 1,
-});
-  const [template, setTemplate] = useState(null);
-  const [cardName, setCardName] = useState("");
-  const [cardDesc, setCardDesc] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [canvasReady, setCanvasReady] = useState(false);
-  const [closePanels, setClosePanels] = useState(false);
-  const [layerSelected, setLayerSelected] = useState("chưa chọn");
-  const [toolSelected, setToolSelected] = useState("chưa chọn");
-  const [toolNum, setToolNum] = useState(6);
-  const [drawingMode, setDrawingMode] = useState(false);
-  const [drawBrush, setDrawBrush] = useState({ color: "blue", width: 15 });
-  const [rectDetails, setRectDetails] = useState({fill: "white", stroke:"black", strokeWidth:2});
-  const fabricRef = useRef(null);
+  const navigate = useNavigate();
+  const mode = editorMode === "templates" ? "templates" : "cards";
+  const backPath = mode === "templates" ? "/templates" : "/cards";
 
-  const getSizeToolBox = (toolsNum) => `w-[${toolsNum * 64}px]`;
+  const [loadState, setLoadState] = useState({
+    status: "loading",
+    recordId: null,
+    editorKey: id,
+    record: null,
+    kind: "empty",
+    designJson: null,
+    legacySource: null,
+    errorMessage: "",
+  });
+  const [retryCount, setRetryCount] = useState(0);
+
+  const handleRetry = useCallback(() => {
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   useEffect(() => {
-    let active = true;
     if (id === "blank") {
-      if (mode !== "templates") { navigate("/cards", { replace: true }); return; }
-      setTemplate({ fabricEdit: null, name: "Blank Template" });
+      if (mode !== "templates" || viewOnly) {
+        navigate("/cards", { replace: true });
+        return;
+      }
+      setLoadState({
+        status: "ready",
+        recordId: "blank",
+        editorKey: "blank",
+        record: { name: "Mẫu thiệp mới" },
+        kind: "dom-blank",
+        designJson: null,
+        legacySource: null,
+        errorMessage: "",
+      });
       return;
     }
 
-    const fetchData = async () => {
-      try {
-        const res =
-          mode === "cards" ? await getCardById(id) : await getTemplateById(id);
-        
-        if (!active) return;
-        setTemplate(res.data);
-        setCardName(res.data?.name || res.data?.cardName || "");
-        setCardDesc(res.data?.cardDESC || "");
-      } catch (err) {
-        if (!active) return;
-        console.error(err);
-        toast.error(`Không thể lấy dữ liệu`);
-        navigate('/cards');
-      }
-    };
-    fetchData();
-    return () => { active = false; };
-  }, [id, mode, navigate]);
+    let active = true;
+    const controller = new AbortController();
 
-  if (!template) return <div>Đang tải thiệp...</div>;
+    setLoadState({
+      status: "loading",
+      recordId: id,
+      editorKey: id,
+      record: null,
+      kind: "empty",
+      designJson: null,
+      legacySource: null,
+      errorMessage: "",
+    });
 
-  const handleSave = async (event) => {
-    event.preventDefault();
-    if (!cardName.trim()) { toast.error("Vui lòng nhập tên thiết kế."); return; }
-    if (saving || !canvasReady || !fabricRef.current) return;
-    setSaving(true);
-    try {
-      const fabricEdit = fabricRef.current.toJSON();
-      if (mode === "templates") {
-        const data = { name: cardName.trim(), fabricEdit };
-        if (id === "blank") await createTemplate(data);
-        else await updateTemplate(id, data);
-      } else {
-        await updateCard(id, { cardName: cardName.trim(), cardDESC: cardDesc, fabricEdit });
+    async function fetchRecordAndDesign() {
+      // Allow React StrictMode initial unmount cleanup before running async I/O.
+      await Promise.resolve();
+      if (!active || controller.signal.aborted) return;
+
+      const res =
+        mode === "cards"
+          ? await getCardById(id)
+          : await getTemplateById(id);
+
+      if (!active || controller.signal.aborted) return;
+
+      const record = res?.data;
+      if (!record || typeof record !== "object") {
+        throw new Error("Không tìm thấy dữ liệu thiết kế.");
       }
-      toast.success("Đã lưu thiết kế.");
-      navigate(mode === "templates" ? "/templates" : "/cards");
-    } catch {
-      toast.error("Không thể lưu thiết kế. Vui lòng thử lại.");
-    } finally {
-      setSaving(false);
+
+      const classified = classifyRecordDesign(record);
+
+      if (classified.kind === "legacy-fabric") {
+        setLoadState({
+          status: "ready",
+          recordId: id,
+          editorKey: id,
+          record,
+          kind: "legacy-fabric",
+          designJson: null,
+          legacySource: classified.source,
+          errorMessage: "",
+        });
+        return;
+      }
+
+      if (classified.kind === "unsupported") {
+        setLoadState({
+          status: "ready",
+          recordId: id,
+          editorKey: id,
+          record,
+          kind: "unsupported",
+          designJson: null,
+          legacySource: null,
+          errorMessage:
+            "Định dạng thiết kế này không được trình chỉnh sửa hiện tại hỗ trợ. Hệ thống không tự động chuyển đổi hoặc thay bằng trang trắng để tránh mất dữ liệu.",
+        });
+        return;
+      }
+
+      if (classified.kind === "dom") {
+        const parsed = await fetchDesignJson(
+          classified.source,
+          controller.signal
+        );
+        if (!active || controller.signal.aborted) return;
+
+        if (!isDomDesign(parsed)) {
+          throw new Error(
+            "Dữ liệu thiết kế không thuộc định dạng DOM hợp lệ."
+          );
+        }
+
+        setLoadState({
+          status: "ready",
+          recordId: id,
+          editorKey: id,
+          record,
+          kind: "dom",
+          designJson: parsed,
+          legacySource: null,
+          errorMessage: "",
+        });
+        return;
+      }
+
+      setLoadState({
+        status: "ready",
+        recordId: id,
+        editorKey: id,
+        record,
+        kind: "empty",
+        designJson: null,
+        legacySource: null,
+        errorMessage: "",
+      });
     }
-  };
 
-  return (
-    <div className="relative h-screen w-screen bg-gray-200">
-      {/*Thêm nút quay lại ở đây */}
-      {viewOnly && (
-        <Link 
-        to="/cards" 
-        className="absolute top-4 left-4 z-50 flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
-        aria-label="Back to cards"
-      >
-        <FaArrowLeft className="text-gray-800" />
-      </Link>
-      )}
-    
-      {/* Popup để lưu card */}
-      {!viewOnly && (
-        <form onSubmit={handleSave} style={{ position: "absolute", zIndex: 50, top: 12, left: "17%", right: "17%", display: "flex", flexWrap: "wrap", gap: 8, padding: 12, background: "white", borderRadius: 8 }}>
-          <input aria-label="Tên thiết kế" placeholder="Tên thiết kế" value={cardName} onChange={(e) => setCardName(e.target.value)} required maxLength={200} disabled={saving} />
-          {mode === "cards" && <input aria-label="Mô tả thiệp" placeholder="Mô tả thiệp" value={cardDesc} onChange={(e) => setCardDesc(e.target.value)} disabled={saving} />}
-          <button type="submit" disabled={saving || !canvasReady}>{saving ? "Đang lưu..." : "Lưu thiết kế"}</button>
-          <button type="button" onClick={() => navigate(mode === "templates" ? "/templates" : "/cards")} disabled={saving}>Quay lại</button>
-        </form>
-      )}
+    fetchRecordAndDesign().catch((err) => {
+      if (!active || controller.signal.aborted || err?.name === "AbortError") {
+        return;
+      }
+      setLoadState({
+        status: "error",
+        recordId: id,
+        editorKey: id,
+        record: null,
+        kind: "empty",
+        designJson: null,
+        legacySource: null,
+        errorMessage:
+          err?.response?.data?.message ||
+          err?.message ||
+          "Không thể tải dữ liệu thiết kế. Vui lòng thử lại.",
+      });
+    });
 
-      <PanelContext.Provider
-        value={{
-          handleSave, saving, canvasReady, cardName, setCardName, fabricRef, drawBrush, setDrawBrush,
-          closePanels, setClosePanels, layerSelected, setLayerSelected,
-          toolSelected, setToolSelected, toolNum, setToolNum, drawingMode,
-          setDrawingMode, template, id, mode,rectDetails, setRectDetails,imageDetails, setImageDetails,textDetails, setTextDetails,
-        }}
-      >
-        <div id="canvasWorkSpace" className="absolute h-screen w-screen">
-          <WorkSpace
-            fabricData={template.fabricEdit}
-            viewOnly={viewOnly}
-            onReady={setCanvasReady}
-          />
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [id, mode, viewOnly, navigate, retryCount]);
+
+  if (loadState.status === "loading" || loadState.recordId !== id) {
+    return (
+      <div className={styles.pageShell}>
+        <div className={styles.stateScreen} role="status" aria-live="polite">
+          <div className={styles.stateCard}>
+            <div className={styles.spinner} aria-hidden="true" />
+            <h2 className={styles.stateTitle}>Đang tải thiết kế...</h2>
+            <p className={styles.stateBody} style={{ marginBottom: 0 }}>
+              Vui lòng chờ trong giây lát.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadState.status === "error") {
+    return (
+      <div className={styles.pageShell}>
+        <div className={styles.stateScreen}>
+          <div className={styles.stateCard} role="alert">
+            <h2 className={styles.stateTitle}>Không thể tải thiết kế</h2>
+            <p className={styles.stateBody}>{loadState.errorMessage}</p>
+            <div className={styles.stateActions}>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={handleRetry}
+              >
+                <FaRedo /> Thử lại
+              </button>
+              <Link to={backPath} className={styles.backButton}>
+                <FaArrowLeft /> Quay lại
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const recordTitle =
+    loadState.record?.cardName || loadState.record?.name || "Thiệp sinh nhật";
+
+  if (loadState.kind === "unsupported") {
+    return (
+      <div className={styles.pageShell}>
+        <div className={styles.stateScreen}>
+          <div className={styles.stateCard} role="alert">
+            <h2 className={styles.stateTitle}>Định dạng thiết kế không được hỗ trợ</h2>
+            <p className={styles.stateBody}>{loadState.errorMessage}</p>
+            <div className={styles.stateActions}>
+              <Link to={backPath} className={styles.backButton}>
+                <FaArrowLeft /> Quay lại
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadState.kind === "legacy-fabric") {
+    return (
+      <div className={styles.pageShell}>
+        <div className={styles.viewOnlyHeader}>
+          <div className={styles.viewOnlyTitleGroup}>
+            <Link to={backPath} className={styles.backButton}>
+              <FaArrowLeft /> Quay lại
+            </Link>
+            <div>
+              <h1 className={styles.viewOnlyTitle}>{recordTitle}</h1>
+              {loadState.record?.cardDESC && (
+                <p className={styles.viewOnlyDesc}>{loadState.record.cardDESC}</p>
+              )}
+            </div>
+          </div>
+          <span className={styles.readOnlyBadge}>Định dạng cũ • Chỉ xem</span>
         </div>
 
-        {/* Chỉ render các thanh công cụ nếu không ở chế độ viewOnly */}
-        {!viewOnly && (
-          <>
-          
-            <div id="layerPanel" className="h-full w-[15%]">
-              <LayerPanel />
+        <div className={styles.legacyBanner} role="note">
+          <p className={styles.legacyNoticeText}>
+            Thiệp này được tạo bằng trình chỉnh sửa cũ. Bạn có thể xem lại
+            bên dưới hoặc tạo thiệp mới từ thư viện mẫu.
+          </p>
+          <Link to={backPath} className={styles.backButton}>
+            Về danh sách
+          </Link>
+        </div>
+
+        <div className={styles.editorArea}>
+          <LegacyFabricViewer
+            source={loadState.legacySource}
+            title={recordTitle}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (viewOnly) {
+    return (
+      <div className={styles.pageShell}>
+        <div className={styles.viewOnlyHeader}>
+          <div className={styles.viewOnlyTitleGroup}>
+            <Link to="/cards" className={styles.backButton}>
+              <FaArrowLeft /> Quay lại
+            </Link>
+            <div>
+              <h1 className={styles.viewOnlyTitle}>{recordTitle}</h1>
+              {loadState.record?.cardDESC && (
+                <p className={styles.viewOnlyDesc}>{loadState.record.cardDESC}</p>
+              )}
             </div>
-            <div id="toolBox" className={`fixed left-1/2 -translate-x-1/2 bottom-4 h-[64px] ${getSizeToolBox(toolNum)}`}>
-              <Toolbox />
-            </div>
-            <div id="propertiesPanel" className={`absolute right-0 top-0 h-full ${!closePanels ? "w-[15%]" : "w-0"} transition-all ease-in-out duration-700`}>
-              <PropertiesPanel />
-            </div>
-          </>
-        )}
-      </PanelContext.Provider>
-    </div>
+          </div>
+          <span className={styles.readOnlyBadge}>Chế độ chỉ xem</span>
+        </div>
+
+        <div className={styles.editorArea}>
+          <DomDesignViewer design={loadState.designJson} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DomEditor
+      key={loadState.editorKey}
+      editorMode={mode}
+      recordId={id}
+      initialRecord={loadState.record}
+      initialDesign={loadState.designJson}
+      isNewBlank={id === "blank"}
+    />
   );
 }
-

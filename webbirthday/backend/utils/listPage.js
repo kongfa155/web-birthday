@@ -17,5 +17,5 @@ export async function listPage(model, filter, projection, page, populate) {
   return { items, nextCursor: rows.length > page.limit ? String(items.at(-1)._id) : null };
 }
 
-export const CARD_LIST_FIELDS = { cardName: 1, imgURL: { $slice: 1 }, createdAt: 1, isEditable: 1 };
-export const TEMPLATE_LIST_FIELDS = { name: 1, imgURL: { $slice: 1 }, owner: 1, createdAt: 1 };
+export const CARD_LIST_FIELDS = { cardName: 1, previewUrl: 1, designFormat: 1, imgURL: { $slice: 1 }, createdAt: 1, isEditable: 1 };
+export const TEMPLATE_LIST_FIELDS = { name: 1, previewUrl: 1, designFormat: 1, imgURL: { $slice: 1 }, owner: 1, createdAt: 1 };

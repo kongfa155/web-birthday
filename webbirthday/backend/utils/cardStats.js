@@ -7,13 +7,13 @@ export async function cardStats(owners) {
     { $group: {
       _id: "$owner",
       count: { $sum: 1 },
-      files: { $push: { images: "$imgURL", design: "$fabricEdit" } },
+      files: { $push: { images: "$imgURL", design: "$fabricEdit", nativeDesign: "$designUrl", preview: "$previewUrl" } },
     } },
   ]);
   return new Map(rows.map((row) => {
     const files = new Set();
     for (const item of row.files || []) {
-      for (const value of [...(item.images || []), item.design]) {
+      for (const value of [...(item.images || []), item.design, item.nativeDesign, item.preview]) {
         if (typeof value === "string" && value.trim()) files.add(value);
       }
     }

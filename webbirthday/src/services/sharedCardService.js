@@ -47,47 +47,4 @@ export async function getSharedCard(token, signal) {
   return response.json();
 }
 
-function validateDesign(design) {
-  if (!design || typeof design !== "object" || !Array.isArray(design.objects)) {
-    throw new Error("Dữ liệu thiết kế không hợp lệ.");
-  }
-  return design;
-}
-
-export async function fetchSharedDesignJson(fabricEdit, signal) {
-  if (fabricEdit == null || fabricEdit === "") {
-    return null;
-  }
-
-  if (typeof fabricEdit === "object") {
-    return validateDesign(fabricEdit);
-  }
-
-  if (typeof fabricEdit !== "string") {
-    throw new Error("Dữ liệu thiết kế không hợp lệ.");
-  }
-
-  const trimmed = fabricEdit.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    const response = await fetch(trimmed, {
-      method: "GET",
-      cache: "no-store",
-      referrerPolicy: "no-referrer",
-      credentials: "omit",
-      headers: {
-        Accept: "application/json",
-      },
-      signal,
-    });
-    if (!response.ok) {
-      throw new Error("Không thể tải dữ liệu thiết kế của thiệp.");
-    }
-    return validateDesign(await response.json());
-  }
-
-  if (trimmed.startsWith("{")) {
-    return validateDesign(JSON.parse(trimmed));
-  }
-
-  throw new Error("Định dạng thiết kế không hợp lệ.");
-}
+export { fetchDesignJson as fetchSharedDesignJson } from "./designService.js";

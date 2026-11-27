@@ -27,6 +27,17 @@ const TopSection = () => {
     }
   };
 
+  const handleCreateBlank = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const { data } = await createCard({ cardName: "Thiệp sinh nhật của tôi", blank: true });
+      navigate(`/edit/cards/${data.card._id}`);
+    } catch {
+      toast.error("Không thể tạo thiệp mới. Vui lòng thử lại.");
+    } finally { setCreating(false); }
+  };
+
 
   return (
     <div className={styles.topSection}>
@@ -48,7 +59,7 @@ const TopSection = () => {
         <>
           <div className={`${styles.drawer} ${openDrawer ? styles.drawerOpen : ""}`}>
             <div className={styles.drawerHeader}>
-              <h2>Choose a Template</h2>
+              <h2>Chọn mẫu thiệp</h2>
               <button
                 className={styles.closeBtn}
                 onClick={() => setOpenDrawer(false)}
@@ -57,9 +68,14 @@ const TopSection = () => {
               </button>
             </div>
             <div className={`${styles.drawerBody} ${styles.horizontalScroll}`}>
+              <button type="button" className={styles.templateCard} disabled={creating} onClick={handleCreateBlank}>
+                <img src="/hpbd.png" alt="Tạo thiệp mới" />
+                <p>Bắt đầu thiệp mới</p>
+                <small>Chọn mẫu sinh nhật trong trình thiết kế</small>
+              </button>
               {loading && <p role="status">Đang tải mẫu thiệp...</p>}
               {error && <p role="alert">Không thể tải mẫu thiệp. <button type="button" onClick={retry} disabled={loading}>Thử lại</button></p>}
-              {!loading && !error && templates.length === 0 && <p>Chưa có mẫu thiệp. Bạn hãy quay lại sau khi Admin bổ sung mẫu nhé.</p>}
+              {!loading && !error && templates.length === 0 && <p>Bạn có thể bắt đầu thiệp mới với thư viện mẫu dựng sẵn trong trình thiết kế.</p>}
               {templates.map((template) => (
                 <button
                   type="button"
@@ -68,7 +84,7 @@ const TopSection = () => {
                   className={styles.templateCard}
                   onClick={() => handleChooseTemplate(template)}
                 >
-                  <img loading="lazy" decoding="async" src={template.imgURL?.[0] || "/hpbd.png"} alt={template.name} />
+                  <img loading="lazy" decoding="async" src={template.previewUrl || template.imgURL?.[0] || "/hpbd.png"} alt={template.name} />
                   <p>{template.name}</p>
                 </button>
               ))}
@@ -86,4 +102,3 @@ const TopSection = () => {
 };
 
 export default TopSection;
-
