@@ -258,3 +258,74 @@ test("broken image fails viewing and saving instead of silently producing a blan
   await expect(page.getByRole("alert").first()).toContainText("Không thể tải");
   expect(state.saves).toHaveLength(0);
 });
+
+test("history coalesces edits within 600ms and a new edit discards redo", async ({ page }) => {
+  await setup(page);
+  await page.goto(`/edit/cards/${CARD_ID}`);
+  const element = page.locator('[data-element-id="greeting"]');
+  await element.click();
+  const input = page.getByRole("textbox", { name: "Nội dung chữ", exact: true });
+  const undo = page.getByRole("button", { name: "Hoàn tác", exact: true });
+  const redo = page.getByRole("button", { name: "Làm lại", exact: true });
+
+  await page.clock.setFixedTime(new Date("2026-11-27T00:00:00.000Z"));
+  await input.fill("Lời chúc thứ nhất");
+  await page.clock.setFixedTime(new Date("2026-11-27T00:00:00.599Z"));
+  await input.fill("Lời chúc thứ hai");
+  await undo.click();
+  await expect(element).toContainText("Chúc mừng sinh nhật!");
+  await expect(undo).toBeDisabled();
+  await redo.click();
+  await expect(element).toContainText("Lời chúc thứ hai");
+
+  await page.clock.setFixedTime(new Date("2026-11-27T00:00:02.000Z"));
+  await input.fill("Một bước riêng");
+  await page.clock.setFixedTime(new Date("2026-11-27T00:00:02.600Z"));
+  await input.fill("Đúng ngưỡng 600ms");
+  await undo.click();
+  await expect(element).toContainText("Một bước riêng");
+  await expect(redo).toBeEnabled();
+  await input.fill("Nhánh chỉnh sửa mới");
+  await expect(redo).toBeDisabled();
+});
+
+test("history retains only the latest 60 undo steps", async ({ page }) => {
+  test.setTimeout(60000);
+  await setup(page);
+  await page.goto(`/edit/cards/${CARD_ID}`);
+  const element = page.locator('[data-element-id="greeting"]');
+  await element.click();
+  const input = page.getByRole("textbox", { name: "Nội dung chữ", exact: true });
+  const undo = page.getByRole("button", { name: "Hoàn tác", exact: true });
+  const start = Date.UTC(2026, 10, 27);
+  for (let step = 1; step <= 62; step++) {
+    await page.clock.setFixedTime(new Date(start + step * 1000));
+    await input.fill(`Lời chúc phiên bản ${step}`);
+  }
+  await expect(element).toContainText("Lời chúc phiên bản 62");
+  for (let step = 0; step < 60; step++) await undo.click();
+  await expect(element).toContainText("Lời chúc phiên bản 2");
+  await expect(undo).toBeDisabled();
+  await page.getByRole("button", { name: "Làm lại", exact: true }).click();
+  await expect(element).toContainText("Lời chúc phiên bản 3");
+});
+
+test("unsaved changes confirmation can cancel navigation and save survives reload", async ({ page }) => {
+  const { state } = await setup(page);
+  await page.goto(`/edit/cards/${CARD_ID}`);
+  const element = page.locator('[data-element-id="greeting"]');
+  await element.click();
+  await page.getByRole("textbox", { name: "Nội dung chữ", exact: true }).fill("Lời chúc cần giữ lại");
+  await page.getByRole("button", { name: "Quay lại", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Rời khỏi trình chỉnh sửa?");
+  await dialog.getByRole("button", { name: "Hủy", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(element).toContainText("Lời chúc cần giữ lại");
+  await page.getByRole("button", { name: "Lưu thiết kế", exact: true }).click();
+  await expect.poll(() => state.saves.length).toBe(1);
+  await expect(page.getByText("Đã lưu", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(element).toContainText("Lời chúc cần giữ lại");
+  await expect(page.getByText("Đã lưu", { exact: true })).toBeVisible();
+});
