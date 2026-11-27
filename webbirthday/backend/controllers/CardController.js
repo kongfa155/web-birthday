@@ -2,18 +2,19 @@
 import Card from "../models/Card.js";
 import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
+import { editableCards, readableCards } from "../utils/cardAccess.js";
 
 const CardController = {
   // [GET] /api/cards
   getAll: async (req, res) => {
     try {
       const cards = await Card.find(
-        {},
+        readableCards(req.user),
         "cardName imgURL cardDESC owner createdAt fabricEdit isEditable"
       ).populate("owner", "username");
       res.json(cards);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể lấy danh sách thiệp." });
     }
   },
 
@@ -21,19 +22,21 @@ const CardController = {
   getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const card = await Card.findById(id).populate("owner", "username");
+      const card = await Card.findOne({ _id: id, ...readableCards(req.user) }).populate("owner", "username");
       if (!card) return res.status(404).json({ message: "Card not found" });
 
       res.json(card);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể lấy thông tin thiệp." });
     }
   },
 
   // [POST] /api/cards
   create: async (req, res) => {
     try {
-      const { cardName, imgURL, cardDESC, fabricEdit, owner } = req.body;
+      const { cardName, imgURL, cardDESC, fabricEdit } = req.body;
+      if (typeof cardName !== "string" || !cardName.trim()) return res.status(400).json({ message: "Vui lòng nhập tên thiệp." });
+      if (req.body.owner && String(req.body.owner) !== String(req.user._id)) return res.status(403).json({ message: "Không thể tạo thiệp thay cho tài khoản khác." });
 
       let fabricURL;
       let imgURLs = imgURL || [];
@@ -58,15 +61,15 @@ const CardController = {
         imgURL: imgURLs,
         cardDESC,
         fabricEdit: fabricURL,
-        owner,
+        owner: req.user._id,
         isEditable: true, // mặc định mới tạo là có thể chỉnh sửa
       });
 
       await newCard.save();
 
       res.status(201).json({ message: "Card created", card: newCard });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể tạo thiệp." });
     }
   },
 
@@ -76,13 +79,17 @@ const CardController = {
       const { id } = req.params;
       const { cardName, imgURL, cardDESC, fabricEdit, owner, isEditable } =
         req.body;
-
-      const updatedFields = {
-        cardName,
-        imgURL,
-        cardDESC,
-        owner,
-      };
+      // Check access before parsing designs or uploading any content.
+      const filter = { _id: id, ...editableCards(req.user) };
+      const existing = await Card.findOne(filter);
+      if (!existing) return res.status(404).json({ message: "Card not found" });
+      if (owner && String(owner) !== String(req.user._id)) return res.status(403).json({ message: "Không thể chuyển chủ sở hữu thiệp qua API này." });
+      if (typeof isEditable !== "undefined" && typeof isEditable !== "boolean") return res.status(400).json({ message: "Trạng thái thiệp không hợp lệ." });
+      if (cardName !== undefined && (typeof cardName !== "string" || !cardName.trim())) return res.status(400).json({ message: "Tên thiệp không hợp lệ." });
+      const updatedFields = {};
+      for (const [key, value] of Object.entries({ cardName, imgURL, cardDESC })) {
+        if (value !== undefined) updatedFields[key] = value;
+      }
 
       // Cho phép cập nhật trạng thái isEditable
       if (typeof isEditable !== "undefined") {
@@ -104,16 +111,17 @@ const CardController = {
         if (uploadedImgs.length > 0) updatedFields.imgURL = uploadedImgs;
       }
 
-      const updatedCard = await Card.findByIdAndUpdate(id, updatedFields, {
+      const updatedCard = await Card.findOneAndUpdate(filter, updatedFields, {
         new: true,
+        runValidators: true,
       });
 
       if (!updatedCard)
         return res.status(404).json({ message: "Card not found" });
 
       res.json({ message: "Card updated", card: updatedCard });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể cập nhật thiệp." });
     }
   },
 };

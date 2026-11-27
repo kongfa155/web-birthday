@@ -1,34 +1,43 @@
 import React, { useEffect, useState } from "react";
 import styles from "./TemplateTopSection.module.css";
-// import bg from "../../../assets/createbg2.jpg";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
+import { getTemplates } from "../../../services/templateService";
 
 const TemplateTopSection = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
   const [templates, setTemplates] = useState([]);
   const navigate = useNavigate();
 
-  // Lấy danh sách template từ backend
+  // Lấy danh sách template từ backend bằng getTemplates service (đã gắn token)
   useEffect(() => {
+    let active = true;
+
     const fetchTemplates = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/templates");
-        setTemplates(res.data);
+        const res = await getTemplates();
+        if (active) {
+          setTemplates(Array.isArray(res.data) ? res.data : []);
+        }
       } catch (err) {
-        toast.error("Error fetching templates:", err);
+        if (active) {
+          toast.error("Không thể lấy danh sách template");
+          console.error(err);
+        }
       }
     };
 
     fetchTemplates();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
     <div className={styles.TemplateTopSection}>
       <div className={styles.containWrapper}>
-        {/* className={styles.imgContainer} */}
-        <div > 
+        <div>
           <h1 className={styles.title}>TEMPLATES</h1>
           <button
             className={styles.pillBtn}
@@ -37,9 +46,6 @@ const TemplateTopSection = () => {
             + NEW
           </button>
         </div>
-        {/* <div >
-          <img src={bg} alt="Top Illustration" />
-        </div> */}
       </div>
 
       {/* Drawer */}

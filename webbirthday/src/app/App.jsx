@@ -1,16 +1,13 @@
-import Login from "../pages/Login/Login.jsx";
 import AppRoutes from "./routes.jsx";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import { ToastContainer } from "react-toastify";
-import { useAuth } from "../context/AuthContext.jsx";
-export default function App() {
-  const { user } = useAuth();
 
+export default function App() {
   return (
     <>
-      {user ? <AppRoutes /> : <Login />}
+      <AppRoutes />
       <ToastContainer position="top-right" autoClose={3000} />
     </>
   );

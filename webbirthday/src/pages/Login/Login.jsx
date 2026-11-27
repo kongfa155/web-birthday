@@ -1,52 +1,72 @@
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
-import { useState, useEffect } from "react";
 import { loginUser } from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const { login, user } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const [inputEmail, setInputEmail] = useState("");
-  const [inputPassword, setInputPassword] = useState("");
-  const [submit, setSubmit] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [errMsg, setErrMsg] = useState("");
-  const [submitted, setSubmitted] = useState(false); // đánh dấu đã submit thành công
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmit(true);
+    if (isPending) return;
+    setSubmitted(true);
     setErrMsg("");
 
-    if (!inputEmail || inputPassword.trim().length < 6) return;
+    const trimmedUsername = username.trim();
+
+    // Legacy accounts: only check nonempty username and password, no length restrictions
+    if (!trimmedUsername) {
+      setErrMsg("Tên đăng nhập không được để trống");
+      return;
+    }
+
+    if (!password) {
+      setErrMsg("Mật khẩu không được để trống");
+      return;
+    }
+
+    setIsPending(true);
 
     try {
       const res = await loginUser({
-        username: inputEmail,
-        password: inputPassword,
+        username: trimmedUsername,
+        password: password, // exact password preserved without mutating or trimming
       });
 
-      // Cập nhật context và localStorage
-      login(res.data.user, res.data.token);
+      const user = res.data?.user;
+      const token = res.data?.token;
 
-      // Navigate ngay lập tức
+      // Update auth context and storage
+      login(user, token);
+
+      // Navigate immediately to /cards
       navigate("/cards", { replace: true });
     } catch (err) {
-      console.error(err);
-      setErrMsg(err.response?.data?.message || "Đăng nhập thất bại, thử lại!");
+      // Generic error or server error message
+      const serverMessage =
+        err.response?.data?.message ||
+        (err.response?.status === 401
+          ? "Tên đăng nhập hoặc mật khẩu không chính xác"
+          : err.response?.status === 403
+          ? "Tài khoản của bạn đã bị vô hiệu hóa"
+          : "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin!");
+      setErrMsg(serverMessage);
+    } finally {
+      setIsPending(false);
     }
   };
 
-  // Điều hướng khi user đã tồn tại trong context
-  useEffect(() => {
-    if (submitted && user) {
-      navigate("/cards", { replace: true });
-    }
-  }, [submitted, user, navigate]);
-
-  const emailInvalid = submit && inputEmail === "";
-  const passwordInvalid = submit && inputPassword.trim().length < 6;
+  const trimmedUsername = username.trim();
+  const usernameInvalid = submitted && !trimmedUsername;
+  const passwordInvalid = submitted && !password;
 
   return (
     <div className={styles.loginContainer}>
@@ -54,42 +74,74 @@ export default function Login() {
         <div className={styles.header}>
           <div className={styles.circle}></div>
         </div>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <p className={styles.formTitle}>Đăng nhập</p>
 
-          <input
-            type="text"
-            placeholder="Username"
-            value={inputEmail}
-            onChange={(e) => setInputEmail(e.target.value)}
-            className={`${styles.textInput} ${
-              emailInvalid ? styles.formInput1Invalid : ""
-            }`}
-          />
-          {emailInvalid && (
-            <p style={{ color: "red", margin: 0 }}>Username là bắt buộc</p>
-          )}
+        <form className={styles.form} onSubmit={handleSubmit} noValidate>
+          <h1 className={styles.formTitle}>Đăng nhập</h1>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={inputPassword}
-            onChange={(e) => setInputPassword(e.target.value)}
-            className={`${styles.textInput} ${
-              passwordInvalid ? styles.formInput2Invalid : ""
-            }`}
-          />
-          {passwordInvalid && (
-            <p style={{ color: "red", margin: 0 }}>
-              Password phải chứa ít nhất 6 ký tự
+          <div className={styles.inputGroup}>
+            <label htmlFor="login-username" className={styles.inputLabel}>
+              Tên đăng nhập
+            </label>
+            <input
+              id="login-username"
+              type="text"
+              name="username"
+              autoComplete="username"
+              placeholder="Nhập tên đăng nhập"
+              value={username}
+              disabled={isPending}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (errMsg) setErrMsg("");
+              }}
+              className={`${styles.textInput} ${
+                usernameInvalid ? styles.inputInvalid : ""
+              }`}
+            />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <label htmlFor="login-password" className={styles.inputLabel}>
+              Mật khẩu
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="Nhập mật khẩu"
+              value={password}
+              disabled={isPending}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errMsg) setErrMsg("");
+              }}
+              className={`${styles.textInput} ${
+                passwordInvalid ? styles.inputInvalid : ""
+              }`}
+            />
+          </div>
+
+          {errMsg && (
+            <p className={styles.errorMessage} role="alert">
+              {errMsg}
             </p>
           )}
 
-          {errMsg && <p style={{ color: "red" }}>{errMsg}</p>}
-
-          <button type="submit" className={styles.submitButton}>
-            Đăng nhập
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={isPending}
+          >
+            {isPending ? "Đang xử lý..." : "Đăng nhập"}
           </button>
+
+          <p className={styles.switchAuthText}>
+            Chưa có tài khoản?{" "}
+            <Link to="/register" className={styles.authLink}>
+              Đăng ký ngay
+            </Link>
+          </p>
         </form>
       </div>
     </div>

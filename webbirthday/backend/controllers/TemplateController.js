@@ -7,7 +7,8 @@ const TemplateController = {
   // [POST] /api/templates
   create: async (req, res) => {
     try {
-      const { name, owner, imgURL, fabricEdit } = req.body;
+      const { name, imgURL, fabricEdit } = req.body;
+      if (typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Vui lòng nhập tên mẫu." });
 
       const fabricEditObj =
         typeof fabricEdit === "string" ? JSON.parse(fabricEdit) : fabricEdit;
@@ -22,7 +23,7 @@ const TemplateController = {
 
       const newTemplate = new Template({
         name,
-        owner,
+        owner: req.user._id,
         imgURL: imgURLs.length > 0 ? imgURLs : imgURL,
         fabricEdit: fabricURL, // 🔥 lưu URL vào fabricEdit
       });
@@ -35,7 +36,7 @@ const TemplateController = {
       });
     } catch (err) {
       console.error("Error creating template:", err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: "Không thể tạo mẫu thiệp." });
     }
   },
 
@@ -44,8 +45,8 @@ const TemplateController = {
     try {
       const templates = await Template.find().populate("owner", "username");
       res.json(templates);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể lấy danh sách mẫu thiệp." });
     }
   },
 
@@ -61,8 +62,8 @@ const TemplateController = {
         return res.status(404).json({ message: "Template not found" });
 
       res.json(template);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ message: "Không thể lấy mẫu thiệp." });
     }
   },
 
@@ -70,7 +71,9 @@ const TemplateController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, owner, imgURL, fabricEdit } = req.body;
+      const { name, imgURL, fabricEdit } = req.body;
+      if (typeof name !== "string" || !name.trim()) return res.status(400).json({ message: "Vui lòng nhập tên mẫu." });
+      if (!await Template.exists({ _id: id })) return res.status(404).json({ message: "Template not found" });
 
       const fabricEditObj =
         typeof fabricEdit === "string" ? JSON.parse(fabricEdit) : fabricEdit;
@@ -86,7 +89,6 @@ const TemplateController = {
         id,
         {
           name,
-          owner,
           imgURL: imgURLs.length > 0 ? imgURLs : imgURL,
           fabricEdit: fabricURL, // 🔥 lưu URL vào fabricEdit
         },
@@ -103,7 +105,7 @@ const TemplateController = {
       });
     } catch (err) {
       console.error("Error updating template:", err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: "Không thể cập nhật mẫu thiệp." });
     }
   },
 };

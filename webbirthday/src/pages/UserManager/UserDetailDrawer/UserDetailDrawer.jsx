@@ -1,146 +1,46 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import styles from "./UserDetailDrawer.module.css";
-import { getCards, updateCard } from "../../../services/cardService";
-import { toast } from "react-toastify";
+
 const UserDetailDrawer = ({ user, onClose }) => {
-  const [cards, setCards] = useState([]);
-  const [selectedCardId, setSelectedCardId] = useState("");
-  const [showAddCard, setShowAddCard] = useState(false);
-  const userId = user?._id;
-
-  // ✅ Lấy danh sách card
-  useEffect(() => {
-    if (!userId) return;
-
-    let active = true;
-    setCards([]);
-    setSelectedCardId("");
-    setShowAddCard(false);
-
-    const fetchCards = async () => {
-      try {
-        const res = await getCards();
-        if (active) setCards(res.data);
-      } catch {
-        if (active) toast.error("Không thể lấy danh sách thẻ");
-      }
-    };
-    fetchCards();
-
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-
   if (!user) return null;
 
-  //  Các card user đang sở hữu
-  const ownedCards = cards.filter((card) => {
-    if (!card.owner) return false; // bỏ qua nếu không có owner
-    if (typeof card.owner === "object") return card.owner._id === user._id; // populate
-    return card.owner === user._id; // string id
-  });
-
-  // Các card chưa có owner
-  const availableCards = cards.filter((card) => !card.owner);
-
-  // Hàm xử lý khi lưu card mới
-  const handleAddCard = async () => {
-    if (!selectedCardId) {
-      toast.info("Vui lòng chọn thẻ");
-      return;
-    }
-
-    try {
-      await updateCard(selectedCardId, { owner: user._id });
-      toast.info("Gán card cho user thành công!");
-      setShowAddCard(false);
-
-      // cập nhật lại list
-      const res = await getCards();
-      setCards(res.data);
-    } catch (err) {
-      console.error("Error assigning card:", err);
-      toast.error("Lỗi khi gán card!");
-    }
-  };
-
   return (
-    <div className={styles.drawerOverlay} onClick={onClose}>
+    <div className={styles.drawerOverlay} onClick={onClose} role="dialog" aria-modal="true">
       <div
         className={styles.drawer}
-        onClick={(e) => e.stopPropagation()} // tránh đóng khi click bên trong
+        onClick={(e) => e.stopPropagation()} // avoid closing when clicking inside
       >
-        <button className={styles.closeBtn} onClick={onClose}>
+        <button
+          className={styles.closeBtn}
+          onClick={onClose}
+          aria-label="Đóng chi tiết người dùng"
+          type="button"
+        >
           ✖
         </button>
 
-        <h2>User Detail</h2>
-        <p>
-          <strong>Username:</strong> {user.username}
-        </p>
-        <p>
-          <strong>Created At:</strong>{" "}
-          {new Date(user.createdAt).toLocaleString()}
-        </p>
-
-        <h3>Owned Cards</h3>
-        {ownedCards.length > 0 ? (
-          <ul>
-            {ownedCards.map((card) => (
-              <li key={card._id} className={styles.ownedCardItem}>
-                {card.cardName}
-                <button
-                  className={styles.removeCardBtn}
-                  onClick={async () => {
-                    try {
-                      await updateCard(card._id, { owner: null });
-                      toast.info("Đã gỡ card khỏi user!");
-                      // Cập nhật lại list
-                      const res = await getCards();
-                      setCards(res.data);
-                    } catch (err) {
-                      console.error("Error removing card:", err);
-                      toast.error("Lỗi khi gỡ card!");
-                    }
-                  }}
-                >
-                  ✖
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Chưa sở hữu card nào.</p>
-        )}
-
-        {/* Nút thêm card */}
-        {!showAddCard ? (
-          <button
-            onClick={() => setShowAddCard(true)}
-            className={styles.addBtn}
-          >
-            ➕ Thêm Card
-          </button>
-        ) : (
-          <div className={styles.addCardContainer}>
-            <select
-              value={selectedCardId}
-              onChange={(e) => setSelectedCardId(e.target.value)}
-              className={styles.selectBox}
-            >
-              <option value="">-- Chọn card --</option>
-              {availableCards.map((card) => (
-                <option key={card._id} value={card._id}>
-                  {card.cardName}
-                </option>
-              ))}
-            </select>
-            <button onClick={handleAddCard} className={styles.saveBtn}>
-              Lưu
-            </button>
-          </div>
-        )}
+        <h2>Thông tin tài khoản</h2>
+        <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p>
+            <strong>Tên người dùng:</strong> {user.username}
+          </p>
+          <p>
+            <strong>Vai trò:</strong> {user.isAdmin ? "Quản trị viên (Admin)" : "Người dùng (User)"}
+          </p>
+          <p>
+            <strong>Trạng thái:</strong>{" "}
+            <span style={{ color: user.isActive !== false ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+              {user.isActive !== false ? "Đang hoạt động" : "Đã bị vô hiệu hóa"}
+            </span>
+          </p>
+          <p>
+            <strong>Số thiệp:</strong> {user.cardCount ?? 0}
+          </p>
+          <p>
+            <strong>Ngày tạo:</strong>{" "}
+            {user.createdAt ? new Date(user.createdAt).toLocaleString("vi-VN") : "N/A"}
+          </p>
+        </div>
       </div>
     </div>
   );

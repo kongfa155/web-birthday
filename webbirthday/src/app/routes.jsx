@@ -5,28 +5,44 @@ import CardManager from "../pages/CardManager/CardManager.jsx";
 import TemplateManager from "../pages/TemplateManager/TemplateManager.jsx";
 import EditPage from "../pages/EditPage/EditPage.jsx";
 import Login from "../pages/Login/Login.jsx";
-import { ProtectedRoute, AdminRoute } from "./ProtectedRoute.jsx";
+import Register from "../pages/Register/Register.jsx";
+import { ProtectedRoute, AdminRoute, GuestRoute } from "./ProtectedRoute.jsx";
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      {/* Public guest-only routes */}
+      <Route element={<GuestRoute />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
 
+      {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="/cards" element={<CardManager />} />
 
+          {/* Admin-only manager routes */}
           <Route element={<AdminRoute />}>
             <Route path="/users" element={<UserManager />} />
             <Route path="/templates" element={<TemplateManager />} />
           </Route>
         </Route>
 
-        <Route path="/edit/:mode/:id" element={<EditPage />} />
+        {/* Editor remains ADMIN-ONLY for this TU-01 */}
+        <Route element={<AdminRoute />}>
+          <Route path="/edit/:mode/:id" element={<EditPage />} />
+        </Route>
+
+        {/* Read-only card view for authenticated users */}
         <Route path="/view/cards/:id" element={<EditPage viewOnly={true} />} />
       </Route>
 
+      {/* Root path redirects to /cards */}
       <Route path="/" element={<Navigate to="/cards" replace />} />
+
+      {/* Not found fallback */}
+      <Route path="*" element={<Navigate to="/cards" replace />} />
     </Routes>
   );
 }

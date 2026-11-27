@@ -1,6 +1,6 @@
 import axios from "../utils/axiosCustomize.js";
 
-const API_URL = "api/users";
+const API_URL = "/api/users";
 
 export const getUsers = async () => {
   const res = await axios.get(API_URL);
@@ -18,4 +18,12 @@ export const postCreateNewUser = async (payload) => {
 
 export const loginUser = (credentials) => {
   return axios.post(`${API_URL}/login`, credentials);
+};
+
+export const registerUser = (userData) => {
+  return axios.post(`${API_URL}/register`, userData);
+};
+
+export const getCurrentUser = () => {
+  return axios.get(`${API_URL}/me`);
 };

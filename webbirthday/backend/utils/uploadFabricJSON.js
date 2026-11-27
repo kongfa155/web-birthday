@@ -1,13 +1,14 @@
 // utils/uploadFabricJSON.js
 import cloudinary from "../config/cloudinary.js";
+import { randomUUID } from "node:crypto";
 
 /**
  * Upload Fabric JSON (string) lên Cloudinary dưới dạng file raw
  * @param {string} fabricJSON - string JSON của canvas
- * @param {string} fileName - tên file trên Cloudinary
+ * Legacy callers may pass a name; shared public IDs are deliberately not used.
  * @returns {Promise<string>} URL file JSON trên Cloudinary
  */
-export const uploadFabricJSON = async (fabricJSON, fileName = "fabric") => {
+export const uploadFabricJSON = async (fabricJSON) => {
   try {
     // Chuyển string JSON thành buffer
     const buffer = Buffer.from(fabricJSON, "utf-8");
@@ -17,7 +18,8 @@ export const uploadFabricJSON = async (fabricJSON, fileName = "fabric") => {
         {
           resource_type: "raw", // Upload dưới dạng file raw
           folder: "fabric_json", // Thư mục trên Cloudinary
-          public_id: fileName, // Tên file
+          public_id: randomUUID(), // Prevent name collisions overwriting another account's design.
+          overwrite: false,
         },
         (error, result) => {
           if (error) {

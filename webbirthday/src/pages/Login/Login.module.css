@@ -1,18 +1,20 @@
 .layoutLogin {
-    width: 400px;
-    height: 500px;
+    width: 420px;
+    max-width: 92%;
+    min-height: 520px;
     background-color: #fff;
-    border-radius: 2%;
+    border-radius: 12px;
     text-align: center;
-    margin: 100px 200px auto auto;
+    margin: 60px 150px auto auto;
     overflow: hidden;
-    box-shadow: 0px 2px 15px rgba(0, 0, 0, 0.348);
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
 }
-
 
 @media (max-width: 720px) {
     .layoutLogin {
-        margin: 20% auto;
+        margin: 20px auto;
     }
 }
 
@@ -40,58 +42,108 @@
 .circle:hover {
     background-image: url("/logo-cake.png");
     transform: rotate(180deg);
-    -webkit-transform: rotate(180deg);
-    -moz-transform: rotate(180deg);
 }
 
 .form {
     display: flex;
-    justify-content: space-around;
-    align-items: center;
     flex-direction: column;
-    margin: 20px auto;
-}
-
-.formInput1Invalid,
-.formInput2Invalid {
-    border: 2px solid red;
+    align-items: center;
+    padding: 24px 20px 20px 20px;
+    flex: 1;
 }
 
 .formTitle {
-    font-size: 30px;
+    font-size: 26px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.inputGroup {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.inputLabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 4px;
 }
 
 .textInput {
+    border: 1px solid #ccc;
     border-radius: 8px;
-    padding-left: 20px;
-    width: 340px;
-    height: 50px;
-    margin: 20px auto 0 auto;
+    padding: 0 14px;
+    width: 100%;
+    height: 46px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-::placeholder {
-    font-size: 14px;
+.textInput:focus {
+    border-color: #81C4F0;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(129, 196, 240, 0.3);
+}
+
+.inputInvalid {
+    border: 2px solid #ef4444 !important;
+}
+
+.errorMessage {
+    color: #dc2626;
+    font-size: 13px;
+    margin: 8px 0 0 0;
+    max-width: 340px;
+    line-height: 1.4;
+    text-align: center;
 }
 
 .submitButton {
-    width: 200px;
-    padding: 10px;
-    margin-top: 40px;
+    width: 220px;
+    padding: 12px;
+    margin-top: 24px;
     background-color: #81C4F0;
     color: #ffffff;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
     font-weight: bold;
-    transition: background-color 0.5s, transform 0.5s ease;
+    transition: background-color 0.3s, transform 0.2s ease;
 }
 
-.submitButton:hover {
+.submitButton:hover:not(:disabled) {
     background-color: #578bb5;
-    transform: scale(1.1);
-    -webkit-transform: scale(1.1);
-    -moz-transform: scale(1.1);
+    transform: translateY(-1px);
+}
+
+.submitButton:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.switchAuthText {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #555;
+}
+
+.authLink {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.authLink:hover {
+    color: #1d4ed8;
 }
 
 .loginContainer {

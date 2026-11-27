@@ -13,25 +13,27 @@ const BottomSection = () => {
   useEffect(() => {
     if (!user) return;
 
+    let active = true;
     const fetchCards = async () => {
       try {
+        // Trust already-authorized server response; backend filters cards according to role/ownership
         const res = await getCards();
-        let displayCards = [];
-        if (user.isAdmin) {
-          displayCards = res.data;
-        } else {
-          displayCards = res.data.filter(
-            (card) => card.owner?._id === user._id && !card.isEditable
-          );
+        if (active) {
+          setCardsData(Array.isArray(res.data) ? res.data : []);
         }
-        setCardsData(displayCards);
       } catch (err) {
-        toast.error("Không thể lấy Card");
-        console.error(err);
+        if (active) {
+          toast.error("Không thể lấy danh sách thiệp");
+          console.error(err);
+        }
       }
     };
 
     fetchCards();
+
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const toggleEditable = async (cardId, newState) => {
@@ -106,11 +108,11 @@ const BottomSection = () => {
       <div className={styles.gridContainer}>
         {cardsData.length === 0 ? (
           <p className={styles.noCardsMessage}>
-            Bạn chưa được cấp quyền truy cập card nào.
+            Chưa có thiệp nào.
           </p>
         ) : (
           cardsData.map((card) => {
-            const isLocked = !card.isEditable && user.isAdmin;// dùng trực tiếp để quyết định UI
+            const isLocked = !card.isEditable && user.isAdmin; // dùng trực tiếp để quyết định UI
 
             return (
               <div

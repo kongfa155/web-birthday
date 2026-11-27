@@ -1,40 +1,68 @@
-import React, { createContext, useState, useContext } from "react";
+import { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
+import { getCurrentUser } from "../services/userService";
 
 const AuthContext = createContext(null);
+const readToken = () => {
+  try { return localStorage.getItem("token"); } catch { return null; }
+};
+const clearStorage = () => {
+  try { localStorage.removeItem("token"); localStorage.removeItem("user"); } catch { /* Storage can be disabled by the browser. */ }
+};
 
 export const AuthProvider = ({ children }) => {
-    
-  // Khi người dùng đăng nhập, bạn sẽ lưu object user vào đây
-  // Ví dụ user object: { _id: "...", username: "testuser", role: "user" }
-  // hoặc { _id: "...", username: "admin", role: "admin" }
-  const [user, setUser] = useState(() => {
-    // Lấy user từ localStorage nếu có, để giữ trạng thái đăng nhập khi refresh trang
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : undefined;
-  });
+  // Cached user JSON is deliberately never parsed or trusted.
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(() => Boolean(readToken()));
+  const generation = useRef(0);
 
-  const login = (userData, token) => {
-    if (token) {
-      localStorage.setItem("token", token); // ✅ Lưu token
-    }
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token"); 
+  const logout = useCallback(() => {
+    generation.current += 1;
+    clearStorage();
     setUser(null);
-  };
+    setLoading(false);
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const login = useCallback((userData, token) => {
+    if (!userData?._id || typeof token !== "string" || !token) {
+      throw new Error("Phản hồi đăng nhập không hợp lệ.");
+    }
+    generation.current += 1;
+    try {
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userData));
+    } catch { /* The next API request will verify whether the session can be persisted. */ }
+    setUser(userData);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const token = readToken();
+    if (!token) { setLoading(false); return; }
+    const current = ++generation.current;
+    let active = true;
+    const isCurrent = () => active && current === generation.current && token === readToken();
+    getCurrentUser()
+      .then(({ data }) => {
+        if (!isCurrent()) return;
+        if (!data?.user?._id) throw new Error("Invalid session response");
+        setUser(data.user);
+        try { localStorage.setItem("user", JSON.stringify(data.user)); } catch { /* Optional cache only. */ }
+      })
+      .catch(() => {
+        if (isCurrent()) { clearStorage(); setUser(null); }
+      })
+      .finally(() => { if (active && current === generation.current) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("auth:unauthorized", logout);
+    return () => window.removeEventListener("auth:unauthorized", logout);
+  }, [logout]);
+
+  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook để dễ dàng sử dụng context
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+// Kept together to preserve existing imports throughout the application.
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuth = () => useContext(AuthContext);

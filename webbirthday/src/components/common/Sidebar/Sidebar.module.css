@@ -5,14 +5,12 @@
     height: 100vh;
     background-color: #F8FAFD;
     color: #F8FAFD;
-    /* padding: 5px; */
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
     transition: width 0.3s ease;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    /* justify-content: center;
-    align-items: center; */
+    z-index: 100;
 }
 
 .sidebarOpen {
@@ -43,10 +41,9 @@
     cursor: pointer;
     transition: transform 0.3s ease;
 }
+
 .toggleBtnShifted {
     transform: rotate(90deg);
--webkit-transform: rotate(90deg);
--moz-transform: rotate(90deg);
 }
 
 .menuList {
@@ -65,13 +62,11 @@
     align-items: center;
     gap: 10px;
     padding: 18px;
-    /* border-radius: 4px; */
     transition: background 0.5s ease, transform 0.5s ease, border-radius 1s ease;
     text-decoration: none;
     color: black;
-    width: 100vw;
+    width: 100%;
     min-height: 40px;
-    /* đảm bảo không bị collapse */
     box-sizing: border-box;
 }
 
@@ -83,6 +78,15 @@
 .activeLink {
     background: rgba(40, 128, 230, 0.459);
     border-radius: 50px;
+}
+
+.logoutBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
 }
 
 .menuText {

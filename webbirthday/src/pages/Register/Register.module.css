@@ -1,0 +1,167 @@
+.registerContainer {
+  height: 100vh;
+  max-width: 100%;
+  background-image: url("/background-hpbd-PC.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .registerContainer {
+    justify-content: center;
+    align-items: center;
+    background-image: url("/background-hpbd-smartphone.JPG");
+  }
+}
+
+.layoutRegister {
+  width: 420px;
+  max-width: 92%;
+  min-height: 580px;
+  background-color: #fff;
+  border-radius: 12px;
+  text-align: center;
+  margin: 40px 150px auto auto;
+  overflow: hidden;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 720px) {
+  .layoutRegister {
+    margin: 20px auto;
+  }
+}
+
+.header {
+  background-color: #81C4F0;
+  height: 64px;
+  display: flex;
+  justify-content: center;
+}
+
+.circle {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background-color: #81C4F0;
+  position: relative;
+  margin-top: 12px;
+  transition: 0.5s;
+  background-image: url("/icon_login.png");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+.circle:hover {
+  background-image: url("/logo-cake.png");
+  transform: rotate(180deg);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px 20px 20px;
+  flex: 1;
+}
+
+.formTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.inputGroup {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.inputLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.textInput {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 0 14px;
+  width: 100%;
+  height: 44px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.textInput:focus {
+  border-color: #81C4F0;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(129, 196, 240, 0.3);
+}
+
+.inputInvalid {
+  border: 2px solid #ef4444 !important;
+}
+
+.errorMessage {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 6px 0 0 0;
+  max-width: 340px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.submitButton {
+  width: 220px;
+  padding: 12px;
+  margin-top: 18px;
+  background-color: #81C4F0;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s, transform 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background-color: #578bb5;
+  transform: translateY(-1px);
+}
+
+.submitButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.switchAuthText {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #555;
+}
+
+.authLink {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+  margin-left: 4px;
+}
+
+.authLink:hover {
+  color: #1d4ed8;
+}

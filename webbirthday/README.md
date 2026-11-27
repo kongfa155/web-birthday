@@ -2,6 +2,23 @@
 
 Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
 
+## Cập nhật TU-01: đăng ký tài khoản
+
+Người dùng có thể mở `/register`, đăng ký và tự đăng nhập vào `/cards`.
+Tên đăng nhập phân biệt hoa/thường; mật khẩu đăng ký tối thiểu 6 ký tự.
+Backend đã kiểm tra JWT, trạng thái tài khoản và quyền truy cập dữ liệu.
+Admin chỉ xem thông tin tài khoản và số lượng thiệp của người dùng.
+
+Xem [phạm vi, API, kiểm thử và điều kiện phát hành TU-01](docs/TU-01.md).
+User tự tạo/gửi thiệp là hạng mục tiếp theo, chưa nằm trong TU-01.
+
+Kiểm thử backend không kết nối database thật:
+
+```bash
+cd webbirthday/backend
+npm test
+```
+
 ## Cấu trúc dự án
 
 ```text

@@ -1,47 +1,19 @@
-import express from "express";
 import mongoose from "mongoose";
-import cors from "cors";
 import dotenv from "dotenv";
-// Import routes
-import cardRoutes from "./routes/cardRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import templateRoutes from "./routes/templateRoutes.js";
-import uploadBase64Routes from "./routes/uploadBase64.js";
+import { createApp } from "./app.js";
 
 dotenv.config();
-
-const app = express();
-
-
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
-
-
-// Kết nối MongoDB
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
-
-app.get("/", (req, res) => {
-  res.send("Backend is running 🚀");
-});
-
-//Routes
-app.use("/api/cards", cardRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/templates", templateRoutes);
-// server.js
-app.use("/api/upload-base64", uploadBase64Routes);
-
-
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
-);
+if (!process.env.JWT_SECRET || !process.env.MONGO_URI) {
+  console.error("Thiếu cấu hình MONGO_URI hoặc JWT_SECRET.");
+  process.exitCode = 1;
+} else {
+  try {
+    // Never create collections/indexes implicitly. Schema changes require separate approval.
+    await mongoose.connect(process.env.MONGO_URI, { autoIndex: false, autoCreate: false });
+    const port = process.env.PORT || 5000;
+    createApp().listen(port, () => console.log(`Server running on port ${port}`));
+  } catch {
+    console.error("Không thể kết nối MongoDB. Kiểm tra cấu hình và quyền truy cập.");
+    process.exitCode = 1;
+  }
+}
