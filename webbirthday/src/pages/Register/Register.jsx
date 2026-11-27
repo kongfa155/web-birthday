@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styles from "./Register.module.css";
 import { registerUser } from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
+import GoogleSignIn from "../../components/auth/GoogleSignIn";
 
 export default function Register() {
   const { login } = useAuth();
@@ -12,12 +13,13 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [isGooglePending, setIsGooglePending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isPending) return;
+    if (isPending || isGooglePending) return;
     setSubmitted(true);
     setErrMsg("");
 
@@ -96,6 +98,8 @@ export default function Register() {
   const confirmInvalid =
     submitted && (!confirmPassword || password !== confirmPassword);
 
+  const isAnyPending = isPending || isGooglePending;
+
   return (
     <div className={styles.registerContainer}>
       <div className={styles.layoutRegister}>
@@ -117,7 +121,7 @@ export default function Register() {
               autoComplete="username"
               placeholder="Nhập tên đăng nhập (1-64 ký tự)"
               value={username}
-              disabled={isPending}
+              disabled={isAnyPending}
               onChange={(e) => {
                 setUsername(e.target.value);
                 if (errMsg) setErrMsg("");
@@ -139,7 +143,7 @@ export default function Register() {
               autoComplete="new-password"
               placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
               value={password}
-              disabled={isPending}
+              disabled={isAnyPending}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (errMsg) setErrMsg("");
@@ -164,7 +168,7 @@ export default function Register() {
               autoComplete="new-password"
               placeholder="Nhập lại mật khẩu"
               value={confirmPassword}
-              disabled={isPending}
+              disabled={isAnyPending}
               onChange={(e) => {
                 setConfirmPassword(e.target.value);
                 if (errMsg) setErrMsg("");
@@ -184,18 +188,31 @@ export default function Register() {
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={isPending}
+            disabled={isAnyPending}
           >
             {isPending ? "Đang xử lý..." : "Đăng ký"}
           </button>
-
-          <p className={styles.switchAuthText}>
-            Đã có tài khoản?{" "}
-            <Link to="/login" className={styles.authLink}>
-              Đăng nhập
-            </Link>
-          </p>
         </form>
+
+        <div className={styles.divider}>
+          <span className={styles.dividerLine} />
+          <span className={styles.dividerText}>hoặc</span>
+          <span className={styles.dividerLine} />
+        </div>
+
+        <div className={styles.googleSection}>
+          <GoogleSignIn
+            disabled={isAnyPending}
+            onPendingChange={setIsGooglePending}
+          />
+        </div>
+
+        <p className={styles.switchAuthText}>
+          Đã có tài khoản?{" "}
+          <Link to="/login" className={styles.authLink}>
+            Đăng nhập
+          </Link>
+        </p>
       </div>
     </div>
   );

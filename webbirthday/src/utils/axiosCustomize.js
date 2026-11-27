@@ -11,7 +11,7 @@ const instance = axios.create({
 });
 
 const isAuthEndpoint = (url = "") => {
-  return /\/api\/users\/(login|register)\/?(?:\?|$)/.test(url);
+  return /\/api\/users\/(login|register|google(?:\/challenge)?)\/?(?:\?|$)/.test(url);
 };
 
 // Add a request interceptor

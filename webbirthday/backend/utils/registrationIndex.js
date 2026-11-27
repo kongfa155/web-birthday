@@ -9,3 +9,13 @@ export async function hasUniqueUsernameIndex() {
     && !index.partialFilterExpression
     && (!index.collation || index.collation.locale === "simple"));
 }
+
+export async function hasUniqueGoogleIndex() {
+  const indexes = await User.collection.listIndexes().toArray();
+  return indexes.some((index) => index.unique === true
+    && Object.keys(index.key).length === 1
+    && Math.abs(index.key.googleSub) === 1
+    && index.partialFilterExpression?.googleSub?.$type === "string"
+    && Object.keys(index.partialFilterExpression).length === 1
+    && (!index.collation || index.collation.locale === "simple"));
+}

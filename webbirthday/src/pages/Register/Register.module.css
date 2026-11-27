@@ -8,6 +8,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  overflow-y: auto;
 }
 
 @media (max-width: 720px) {
@@ -21,15 +22,16 @@
 .layoutRegister {
   width: 420px;
   max-width: 92%;
-  min-height: 580px;
+  min-height: 600px;
   background-color: #fff;
   border-radius: 12px;
   text-align: center;
-  margin: 40px 150px auto auto;
+  margin: 30px 150px auto auto;
   overflow: hidden;
   box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
+  padding-bottom: 24px;
 }
 
 @media (max-width: 720px) {
@@ -68,8 +70,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 20px 20px 20px;
-  flex: 1;
+  padding: 24px 20px 8px 20px;
 }
 
 .formTitle {
@@ -128,7 +129,7 @@
 .submitButton {
   width: 220px;
   padding: 12px;
-  margin-top: 18px;
+  margin-top: 16px;
   background-color: #81C4F0;
   color: #ffffff;
   border: none;
@@ -149,8 +150,37 @@
   cursor: not-allowed;
 }
 
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 340px;
+  margin: 14px auto 10px auto;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background-color: #e5e7eb;
+}
+
+.dividerText {
+  padding: 0 12px;
+  font-size: 13px;
+  color: #6b7280;
+  text-transform: lowercase;
+}
+
+.googleSection {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 20px;
+}
+
 .switchAuthText {
-  margin-top: 16px;
+  margin-top: 14px;
   font-size: 14px;
   color: #555;
 }

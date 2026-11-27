@@ -45,7 +45,7 @@ const UserController = {
     if (validation) return res.status(400).json({ message: validation });
     try {
       const user = await User.findOne({ username }).collation({ locale: "simple" });
-      if (!user || !await bcrypt.compare(password, user.password)) {
+      if (!user || typeof user.password !== "string" || !user.password || !await bcrypt.compare(password, user.password)) {
         return res.status(401).json({ message: "Tên đăng nhập hoặc mật khẩu không đúng." });
       }
       if (user.isActive === false) return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa.", code: "ACCOUNT_DISABLED" });
