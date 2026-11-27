@@ -2,9 +2,13 @@
 
 Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
 
-## Cập nhật DP-01 (B1): dọn mã nguồn cũ và chuẩn hóa tài liệu
+## Cập nhật DP-01: refactor mã nguồn
 
-Đã gỡ bỏ nhóm file cũ không còn đường dẫn sử dụng từ entrypoint (`UserViewCard` và các panel editor Fabric cũ, các helper `utils` cũ ở frontend, hai route upload cũ chưa mount ở backend và các file `read.txt` giữ chỗ). Hướng dẫn phân lớp được chuyển sang [tài liệu DP-01](docs/DP-01.md). Editor DOM hiện tại và `LegacyFabricViewer` (hỗ trợ xem thiệp cũ) được giữ nguyên.
+Đã gỡ 19 file cũ/ghi chú không còn sử dụng, tách upload thành route/controller/service,
+và tách editor thành hook lịch sử, phím tắt, lưu/xuất PNG, viewport cùng các component
+thanh công cụ, hộp xác nhận và điều khiển Moveable. Giữ nguyên chức năng, giao diện,
+API và hỗ trợ xem thiệp Fabric cũ. Không thay đổi database hoặc dependency.
+Xem [cấu trúc, kiểm tra từng bước và cách quay lui DP-01](docs/DP-01.md).
 
 ## Editor tạo thiệp
 
@@ -70,6 +74,7 @@ webbirthday/
     ├── middlewares/
     ├── models/
     ├── routes/
+    ├── services/            # Upload Cloudinary dùng chung
     ├── utils/
     └── server.js
 ```
