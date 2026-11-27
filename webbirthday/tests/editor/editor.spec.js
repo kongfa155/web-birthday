@@ -329,3 +329,33 @@ test("unsaved changes confirmation can cancel navigation and save survives reloa
   await expect(element).toContainText("Lời chúc cần giữ lại");
   await expect(page.getByText("Đã lưu", { exact: true })).toBeVisible();
 });
+
+test("keyboard shortcuts preserve text inputs and pause while confirmation is open", async ({ page }) => {
+  await setup(page);
+  await page.goto(`/edit/cards/${CARD_ID}`);
+  const element = page.locator('[data-element-id="greeting"]');
+  await element.click();
+  const input = page.getByRole("textbox", { name: "Nội dung chữ", exact: true });
+  await input.fill("Lời chúc qua phím tắt");
+  await input.press("Delete");
+  await expect(element).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Hoàn tác", exact: true })).toBeEnabled();
+
+  await input.blur();
+  await page.keyboard.press("Control+z");
+  await expect(element).toContainText("Chúc mừng sinh nhật!");
+  await page.keyboard.press("Control+Shift+z");
+  await expect(element).toContainText("Lời chúc qua phím tắt");
+
+  await page.getByRole("button", { name: "Quay lại", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Delete");
+  await page.keyboard.press("Control+z");
+  await expect(element).toContainText("Lời chúc qua phím tắt");
+  await dialog.getByRole("button", { name: "Hủy", exact: true }).click();
+  await page.keyboard.press("Delete");
+  await expect(element).toHaveCount(0);
+  await page.keyboard.press("Control+z");
+  await expect(element).toContainText("Lời chúc qua phím tắt");
+});
