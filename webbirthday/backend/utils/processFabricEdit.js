@@ -1,5 +1,5 @@
 // backend/utils/processFabricEdit.js
-import cloudinary from "../config/cloudinary.js";
+import { uploadImage } from "../services/cloudinaryService.js";
 
 export const processFabricEditImages = async (fabricEdit) => {
   if (!fabricEdit || !fabricEdit.objects) return { fabricEdit, imgURLs: [] };
@@ -12,11 +12,11 @@ export const processFabricEditImages = async (fabricEdit) => {
       const src = obj.src;
       // Nếu là ảnh base64, upload lên Cloudinary
       if (src.startsWith("data:image")) {
-          const uploadResponse = await cloudinary.uploader.upload(src, {
-            folder: "fabric_images",
-          });
-          obj.src = uploadResponse.secure_url;
-          imgURLs.push(uploadResponse.secure_url);
+        const uploadedUrl = await uploadImage(src, {
+          folder: "fabric_images",
+        });
+        obj.src = uploadedUrl;
+        imgURLs.push(uploadedUrl);
       } else {
         imgURLs.push(src);
       }

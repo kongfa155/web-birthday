@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { normalizeDomDesign, DesignValidationError, isRasterDataUrl } from "../../shared/designSchema.js";
-import cloudinary from "../config/cloudinary.js";
+import { uploadImage, uploadRawJson } from "../services/cloudinaryService.js";
 
 export class DesignInputError extends Error {}
 
@@ -43,19 +42,14 @@ export async function saveDomDesign(design, preview) {
     const value = element.src;
     if (value.startsWith("data:")) {
       if (!uploaded.has(value)) {
-        const result = await cloudinary.uploader.upload(value, { folder: "birthday_assets", resource_type: "image" });
-        uploaded.set(value, result.secure_url);
+        const url = await uploadImage(value, { folder: "birthday_assets", resource_type: "image" });
+        uploaded.set(value, url);
       }
       element.src = uploaded.get(value);
     }
     images.add(element.src);
   }
-  const thumbnail = await cloudinary.uploader.upload(preview, { folder: "birthday_previews", resource_type: "image" });
-  const designUrl = await new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
-      resource_type: "raw", folder: "birthday_designs", public_id: randomUUID(), overwrite: false,
-    }, (error, result) => error ? reject(error) : resolve(result.secure_url));
-    stream.end(Buffer.from(JSON.stringify(design), "utf-8"));
-  });
-  return { designUrl, designFormat: "dom", previewUrl: thumbnail.secure_url, imgURL: [...images] };
+  const previewUrl = await uploadImage(preview, { folder: "birthday_previews", resource_type: "image" });
+  const designUrl = await uploadRawJson(JSON.stringify(design), "birthday_designs");
+  return { designUrl, designFormat: "dom", previewUrl, imgURL: [...images] };
 }

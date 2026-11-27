@@ -4,7 +4,7 @@ import cardRoutes from "./routes/cardRoutes.js";
 import sharedCardRoutes from "./routes/sharedCardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import templateRoutes from "./routes/templateRoutes.js";
-import uploadBase64Routes from "./routes/uploadBase64.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 import { shareHeaders } from "./controllers/CardShareController.js";
 import { googleOrigins } from "./utils/googleNonce.js";
 
@@ -20,7 +20,7 @@ export function createApp() {
   app.use("/api/shared-cards", sharedCardRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/templates", templateRoutes);
-  app.use("/api/upload-base64", uploadBase64Routes);
+  app.use("/api/upload-base64", uploadRoutes);
   app.use((req, res) => res.status(404).json({ message: "Không tìm thấy API." }));
   // Do not expose parser errors, internal paths, database errors or stack traces.
   app.use((error, req, res, next) => {
