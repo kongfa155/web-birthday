@@ -2,24 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  FaArrowLeft,
-  FaDownload,
-  FaRedo,
-  FaSave,
-  FaUndo,
-} from "react-icons/fa";
-import {
-  createTemplate,
-  updateTemplate,
-} from "../../services/templateService.js";
-import { updateCard } from "../../services/cardService.js";
-import {
   cloneDesignJson,
   createBlankDesign,
   DEFAULT_PAGE_SIZE,
 } from "../../utils/birthdayTemplates.js";
 import {
-  captureDesignPng,
   createDefaultElement,
   MAX_DESIGN_ELEMENTS,
   nextElementId,
@@ -29,10 +16,13 @@ import {
 import DesignRenderer from "../../components/design/DesignRenderer.jsx";
 import DomEditorSidebar from "./DomEditorSidebar.jsx";
 import DomEditorInspector from "./DomEditorInspector.jsx";
+import EditorConfirmDialog from "./components/EditorConfirmDialog.jsx";
+import EditorToolbar from "./components/EditorToolbar.jsx";
 import EditorTransformControls from "./components/EditorTransformControls.jsx";
 import useEditorHistory from "./hooks/useEditorHistory.js";
+import useEditorPersistence from "./hooks/useEditorPersistence.js";
 import useEditorShortcuts from "./hooks/useEditorShortcuts.js";
-import { computeFitZoom, sanitizeFileName } from "./editorHelpers.js";
+import useEditorViewport from "./hooks/useEditorViewport.js";
 import styles from "./EditPage.module.css";
 
 export default function DomEditor({
@@ -45,27 +35,12 @@ export default function DomEditor({
   const navigate = useNavigate();
   const backPath = editorMode === "templates" ? "/templates" : "/cards";
 
-  const initialName =
-    initialRecord?.name ||
-    initialRecord?.cardName ||
-    (isNewBlank ? "Mẫu thiệp mới" : "");
-  const initialDesc = initialRecord?.cardDESC || "";
-
   const initialDoc = useMemo(() => {
     const base = initialDesign
       ? cloneDesignJson(initialDesign)
       : createBlankDesign(DEFAULT_PAGE_SIZE);
     return normalizeDomDesign(base);
   }, [initialDesign]);
-
-  const [activeRecordId, setActiveRecordId] = useState(recordId);
-  const [hasSavedOnce, setHasSavedOnce] = useState(Boolean(initialDesign) && !isNewBlank);
-  const [cardName, setCardName] = useState(initialName);
-  const [cardDesc, setCardDesc] = useState(initialDesc);
-  const [savedMeta, setSavedMeta] = useState({
-    cardName: initialName,
-    cardDesc: initialDesc,
-  });
 
   const {
     doc,
@@ -78,39 +53,55 @@ export default function DomEditor({
     undo,
     redo,
   } = useEditorHistory(initialDoc);
-  const [savedRevision, setSavedRevision] = useState(0);
 
   const [activeTab, setActiveTab] = useState("templates");
   const [selectedId, setSelectedId] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [editingTextId, setEditingTextId] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
-
-  const [fitZoom, setFitZoom] = useState(0.5);
-  const [manualZoom, setManualZoom] = useState(null);
-  const zoom = manualZoom ?? fitZoom;
-
-  const [saving, setSaving] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [actionError, setActionError] = useState("");
   const [confirmState, setConfirmState] = useState(null);
 
-  const stageViewportRef = useRef(null);
   const planeRef = useRef(null);
   const moveableRef = useRef(null);
   const elementNodesRef = useRef(new Map());
   const interactionRef = useRef(null);
 
+  const {
+    cardName,
+    setCardName,
+    cardDesc,
+    setCardDesc,
+    saving,
+    downloading,
+    actionError,
+    setActionError,
+    isDirty,
+    handleDownloadPng,
+    executeSave,
+    handleSaveSubmit,
+  } = useEditorPersistence({
+    editorMode,
+    recordId,
+    initialRecord,
+    initialDesign,
+    isNewBlank,
+    docRef,
+    revisionRef,
+    revision,
+    planeRef,
+    setEditingTextId,
+  });
+
+  const { stageViewportRef, fitZoom, setManualZoom, zoom } = useEditorViewport({
+    docRef,
+    width: doc.width,
+    height: doc.height,
+  });
+
   const selectedElement = useMemo(
     () => doc.elements.find((el) => el.id === selectedId) || null,
     [doc.elements, selectedId]
   );
-
-  const isDirty =
-    !hasSavedOnce ||
-    revision !== savedRevision ||
-    cardName !== savedMeta.cardName ||
-    (editorMode === "cards" && cardDesc !== savedMeta.cardDesc);
 
   const registerElementRef = useCallback((id, node) => {
     if (node) {
@@ -134,25 +125,6 @@ export default function DomEditor({
       setEditingTextId(null);
     }
   }, [doc.elements, selectedId]);
-
-  useEffect(() => {
-    const viewport = stageViewportRef.current;
-    if (!viewport) return undefined;
-
-    const update = () => {
-      setFitZoom(computeFitZoom(viewport, docRef.current));
-    };
-    update();
-
-    if (typeof ResizeObserver === "function") {
-      const observer = new ResizeObserver(update);
-      observer.observe(viewport);
-      return () => observer.disconnect();
-    }
-
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [doc.width, doc.height, docRef]);
 
   useEffect(() => {
     moveableRef.current?.updateRect();
@@ -357,7 +329,7 @@ export default function DomEditor({
       }));
       setManualZoom(null);
     },
-    [commitDoc, saving]
+    [commitDoc, saving, setManualZoom]
   );
 
   const handleChangeBackground = useCallback(
@@ -382,7 +354,7 @@ export default function DomEditor({
       setManualZoom(null);
       commitDoc(cloned);
     },
-    [commitDoc]
+    [commitDoc, setManualZoom]
   );
 
   const handleRequestApplyTemplate = useCallback(
@@ -435,221 +407,25 @@ export default function DomEditor({
     navigate(backPath);
   };
 
-  const handleDownloadPng = async () => {
-    if (saving || downloading) return;
-    setEditingTextId(null);
-    setActionError("");
-    setDownloading(true);
-    try {
-      await new Promise(requestAnimationFrame);
-      const current = docRef.current;
-      const dataUrl = await captureDesignPng(planeRef.current, {
-        width: current.width,
-        height: current.height,
-        pixelRatio: 2,
-      });
-
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = `${sanitizeFileName(cardName)}.png`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      console.error(err);
-      const message =
-        err?.message || "Không thể xuất ảnh PNG. Vui lòng thử lại.";
-      setActionError(message);
-      toast.error(message);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const executeSave = async () => {
-    const trimmedName = cardName.trim();
-    if (!trimmedName) {
-      const msg = "Vui lòng nhập tên thiết kế.";
-      setActionError(msg);
-      toast.error(msg);
-      return;
-    }
-    if (saving) return;
-
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    setEditingTextId(null);
-    setActionError("");
-    setSaving(true);
-
-    try {
-      // Flush pending inline text blur commit before reading revision/doc.
-      await new Promise(requestAnimationFrame);
-
-      const savingRevision = revisionRef.current;
-      const savingMeta = { cardName: trimmedName, cardDesc };
-      const cleanDesign = normalizeDomDesign(docRef.current);
-
-      const preview = await captureDesignPng(planeRef.current, {
-        width: cleanDesign.width,
-        height: cleanDesign.height,
-        pixelRatio: 0.25,
-      });
-
-      if (editorMode === "templates") {
-        const payload = {
-          name: trimmedName,
-          design: cleanDesign,
-          preview,
-        };
-
-        if (activeRecordId === "blank") {
-          const res = await createTemplate(payload);
-          const createdTemplate = res?.data?.template || res?.data;
-          const createdId = createdTemplate?._id || createdTemplate?.id;
-
-          if (!createdId) {
-            throw new Error("Máy chủ không trả về mã mẫu thiệp vừa tạo.");
-          }
-
-          setActiveRecordId(createdId);
-          setHasSavedOnce(true);
-          setCardName(trimmedName);
-          setSavedMeta(savingMeta);
-          setSavedRevision(savingRevision);
-          toast.success("Đã tạo và lưu mẫu thiệp.");
-
-          navigate(`/edit/templates/${encodeURIComponent(createdId)}`, {
-            replace: true,
-          });
-        } else {
-          await updateTemplate(activeRecordId, payload);
-          setHasSavedOnce(true);
-          setCardName(trimmedName);
-          setSavedMeta(savingMeta);
-          setSavedRevision(savingRevision);
-          toast.success("Đã lưu mẫu thiệp.");
-        }
-      } else {
-        await updateCard(activeRecordId, {
-          cardName: trimmedName,
-          cardDESC: cardDesc,
-          design: cleanDesign,
-          preview,
-        });
-        setHasSavedOnce(true);
-        setCardName(trimmedName);
-        setSavedMeta(savingMeta);
-        setSavedRevision(savingRevision);
-        toast.success("Đã lưu thiết kế thiệp.");
-      }
-    } catch (err) {
-      console.error(err);
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Không thể lưu thiết kế. Vui lòng thử lại.";
-      setActionError(message);
-      toast.error(message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveSubmit = (event) => {
-    event.preventDefault();
-    executeSave();
-  };
-
   return (
     <div className={styles.pageShell}>
-      <form className={styles.topBar} onSubmit={handleSaveSubmit}>
-        <div className={styles.leftGroup}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={handleBack}
-            disabled={saving}
-          >
-            <FaArrowLeft />
-            Quay lại
-          </button>
-
-          <input
-            className={styles.metaInput}
-            aria-label="Tên thiết kế"
-            placeholder="Nhập tên thiết kế..."
-            value={cardName}
-            onChange={(e) => setCardName(e.target.value)}
-            maxLength={200}
-            required
-            disabled={saving}
-          />
-
-          {editorMode === "cards" && (
-            <input
-              className={`${styles.metaInput} ${styles.descInput}`}
-              aria-label="Mô tả thiệp"
-              placeholder="Mô tả thiệp (tùy chọn)"
-              value={cardDesc}
-              onChange={(e) => setCardDesc(e.target.value)}
-              maxLength={500}
-              disabled={saving}
-            />
-          )}
-
-          <span
-            className={`${styles.statusBadge} ${
-              isDirty ? styles.statusDirty : styles.statusSaved
-            }`}
-          >
-            {isDirty ? "Chưa lưu thay đổi" : "Đã lưu"}
-          </span>
-        </div>
-
-        <div className={styles.rightGroup}>
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={handleUndo}
-            disabled={saving || !canUndo}
-            title="Hoàn tác (Ctrl+Z)"
-            aria-label="Hoàn tác"
-          >
-            <FaUndo />
-          </button>
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={handleRedo}
-            disabled={saving || !canRedo}
-            title="Làm lại (Ctrl+Shift+Z)"
-            aria-label="Làm lại"
-          >
-            <FaRedo />
-          </button>
-
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={handleDownloadPng}
-            disabled={saving || downloading}
-          >
-            <FaDownload />
-            {downloading ? "Đang xuất..." : "Tải PNG"}
-          </button>
-
-          <button
-            type="submit"
-            className={styles.primaryButton}
-            disabled={saving}
-          >
-            <FaSave />
-            {saving ? "Đang lưu..." : "Lưu thiết kế"}
-          </button>
-        </div>
-      </form>
+      <EditorToolbar
+        editorMode={editorMode}
+        cardName={cardName}
+        onCardNameChange={setCardName}
+        cardDesc={cardDesc}
+        onCardDescChange={setCardDesc}
+        isDirty={isDirty}
+        saving={saving}
+        downloading={downloading}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onBack={handleBack}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onDownloadPng={handleDownloadPng}
+        onSaveSubmit={handleSaveSubmit}
+      />
 
       {actionError && (
         <div className={styles.editorErrorBanner} role="alert">
@@ -855,39 +631,10 @@ export default function DomEditor({
         )}
       </div>
 
-      {confirmState && (
-        <div
-          className={styles.modalBackdrop}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-modal-title"
-        >
-          <div className={styles.modalDialog}>
-            <h3 id="confirm-modal-title" className={styles.modalTitle}>
-              {confirmState.title}
-            </h3>
-            <p className={styles.modalText}>{confirmState.message}</p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => setConfirmState(null)}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className={
-                  confirmState.danger ? styles.dangerButton : styles.primaryButton
-                }
-                onClick={confirmState.onConfirm}
-              >
-                {confirmState.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditorConfirmDialog
+        confirmState={confirmState}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
