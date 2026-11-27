@@ -3,24 +3,36 @@ import styles from "./UserDetailDrawer.module.css";
 import { getCards, updateCard } from "../../../services/cardService";
 import { toast } from "react-toastify";
 const UserDetailDrawer = ({ user, onClose }) => {
-  if (!user) return null;
-
   const [cards, setCards] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState("");
   const [showAddCard, setShowAddCard] = useState(false);
+  const userId = user?._id;
 
   // ✅ Lấy danh sách card
   useEffect(() => {
+    if (!userId) return;
+
+    let active = true;
+    setCards([]);
+    setSelectedCardId("");
+    setShowAddCard(false);
+
     const fetchCards = async () => {
       try {
         const res = await getCards();
-        setCards(res.data);
-      } catch (err) {
-        toast.error("Không thể lấy danh sách thẻ");
+        if (active) setCards(res.data);
+      } catch {
+        if (active) toast.error("Không thể lấy danh sách thẻ");
       }
     };
     fetchCards();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  if (!user) return null;
 
   //  Các card user đang sở hữu
   const ownedCards = cards.filter((card) => {

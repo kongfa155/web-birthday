@@ -1,5 +1,6 @@
 import "./EditPage.css";
 import { useState, useContext } from "react";
+import { FabricImage } from "fabric";
 import { PanelContext } from "./EditPage";
 import { FaSave as SaveIcon } from "react-icons/fa";
 import { FaFileExport as ExportIcon } from "react-icons/fa6";
@@ -408,24 +409,32 @@ export default function PropertiesPanel() {
               <div className="flex items-center justify-center">
                 <div
                   className="w-[64px] h-[48px] bg-green-300 flex items-center justify-center cursor-pointer shadow-sm hover:shadow-black"
-                  onClick={() => {
+                  onClick={async () => {
                     const canvas = fabricRef.current;
                     if (!canvas) return;
 
-                    if (!imageDetails.url) {
+                    const imageURL = imageDetails.url.trim();
+                    if (!imageURL) {
                       toast.error("Chưa có hình để thêm!");
                       return;
                     }
 
-                    // Thêm hình lên canvas
-                    fabric.Image.fromURL(imageDetails.url, (img) => {
+                    try {
+                      const img = await FabricImage.fromURL(imageURL, {
+                        crossOrigin: "anonymous",
+                      });
+                      if (fabricRef.current !== canvas) return;
+
                       img.scale(imageDetails.scale || 1);
                       canvas.add(img);
                       canvas.setActiveObject(img);
                       canvas.requestRenderAll();
-                    });
 
-                    toast.success("Đã thêm hình vào canvas!");
+                      toast.success("Đã thêm hình vào canvas!");
+                    } catch (err) {
+                      console.error("Error loading image:", err);
+                      toast.error("Không thể tải hình ảnh. Vui lòng kiểm tra URL!");
+                    }
                   }}
                 >
                   Áp dụng
