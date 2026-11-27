@@ -2,6 +2,15 @@
 
 Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
 
+## Cập nhật TU-02: đăng nhập Google
+
+Trang đăng nhập và đăng ký có nút Google, dùng Google Identity Services và Client ID
+cấu hình trong env. Lần đầu tạo tài khoản USER riêng không có mật khẩu nội bộ;
+những lần sau nhận diện bằng Google `sub`. Không gộp email vào tài khoản cũ.
+
+Xem [cấu hình, API, thay đổi dữ liệu và kiểm thử TU-02](docs/TU-02.md).
+Backend yêu cầu Node.js 22 trở lên. Giữ nguyên các cấu hình TU-01 hiện có.
+
 ## Cập nhật TU-01: đăng ký tài khoản
 
 Người dùng có thể mở `/register`, đăng ký và tự đăng nhập vào `/cards`.

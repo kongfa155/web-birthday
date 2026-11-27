@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import { loginUser } from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
+import GoogleSignIn from "../../components/auth/GoogleSignIn";
 
 export default function Login() {
   const { login } = useAuth();
@@ -11,12 +12,13 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [isGooglePending, setIsGooglePending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isPending) return;
+    if (isPending || isGooglePending) return;
     setSubmitted(true);
     setErrMsg("");
 
@@ -68,6 +70,8 @@ export default function Login() {
   const usernameInvalid = submitted && !trimmedUsername;
   const passwordInvalid = submitted && !password;
 
+  const isAnyPending = isPending || isGooglePending;
+
   return (
     <div className={styles.loginContainer}>
       <div className={styles.layoutLogin}>
@@ -89,7 +93,7 @@ export default function Login() {
               autoComplete="username"
               placeholder="Nhập tên đăng nhập"
               value={username}
-              disabled={isPending}
+              disabled={isAnyPending}
               onChange={(e) => {
                 setUsername(e.target.value);
                 if (errMsg) setErrMsg("");
@@ -111,7 +115,7 @@ export default function Login() {
               autoComplete="current-password"
               placeholder="Nhập mật khẩu"
               value={password}
-              disabled={isPending}
+              disabled={isAnyPending}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (errMsg) setErrMsg("");
@@ -131,18 +135,31 @@ export default function Login() {
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={isPending}
+            disabled={isAnyPending}
           >
             {isPending ? "Đang xử lý..." : "Đăng nhập"}
           </button>
-
-          <p className={styles.switchAuthText}>
-            Chưa có tài khoản?{" "}
-            <Link to="/register" className={styles.authLink}>
-              Đăng ký ngay
-            </Link>
-          </p>
         </form>
+
+        <div className={styles.divider}>
+          <span className={styles.dividerLine} />
+          <span className={styles.dividerText}>hoặc</span>
+          <span className={styles.dividerLine} />
+        </div>
+
+        <div className={styles.googleSection}>
+          <GoogleSignIn
+            disabled={isAnyPending}
+            onPendingChange={setIsGooglePending}
+          />
+        </div>
+
+        <p className={styles.switchAuthText}>
+          Chưa có tài khoản?{" "}
+          <Link to="/register" className={styles.authLink}>
+            Đăng ký ngay
+          </Link>
+        </p>
       </div>
     </div>
   );

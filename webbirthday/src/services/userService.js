@@ -27,3 +27,15 @@ export const registerUser = (userData) => {
 export const getCurrentUser = () => {
   return axios.get(`${API_URL}/me`);
 };
+
+export const getGoogleChallenge = () => {
+  return axios.post(`${API_URL}/google/challenge`, {}, { withCredentials: true });
+};
+
+export const loginWithGoogle = (credentialPayload) => {
+  const payload =
+    typeof credentialPayload === "string"
+      ? { credential: credentialPayload }
+      : credentialPayload;
+  return axios.post(`${API_URL}/google`, payload, { withCredentials: true });
+};
