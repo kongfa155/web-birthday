@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styles from "./UserDetailDrawer.module.css";
-import { getCards, updateCard } from "../../../../services/cardService";
+import { getCards, updateCard } from "../../../services/cardService";
 import { toast } from "react-toastify";
 const UserDetailDrawer = ({ user, onClose }) => {
   if (!user) return null;

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getTemplates } from "../../../../services/templateService";
+import { getTemplates } from "../../../services/templateService";
 import { toast } from "react-toastify";
 import styles from "./TopSection.module.css";
-import { useAuth } from "../../../../context/AuthContext"; // Import useAuth
+import { useAuth } from "../../../context/AuthContext"; // Import useAuth
 
 const TopSection = () => {
   const [openDrawer, setOpenDrawer] = useState(false);

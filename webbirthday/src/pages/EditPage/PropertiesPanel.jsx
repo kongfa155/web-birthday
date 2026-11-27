@@ -7,12 +7,12 @@ import { ChromePicker } from "react-color";
 import {
   createTemplate,
   updateTemplate,
-} from "../../../services/templateService";
-import { createCard, updateCard } from "../../../services/cardService";
+} from "../../services/templateService";
+import { createCard, updateCard } from "../../services/cardService";
 import { BsCardList as CardIcon } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { uploadBase64Image } from "../../../services/uploadServices.js";
+import { uploadBase64Image } from "../../services/uploadServices.js";
 
 function ExportButton() {
   const { fabricRef } = useContext(PanelContext);

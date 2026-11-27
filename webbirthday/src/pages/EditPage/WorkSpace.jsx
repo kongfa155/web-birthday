@@ -1,5 +1,5 @@
 import { useEffect, useRef, useContext } from "react";
-import { fabric } from "fabric";
+import * as fabric from "fabric";
 import { PanelContext } from "./EditPage";
 
 export default function WorkSpace({ fabricData, viewOnly }) {

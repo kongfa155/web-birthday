@@ -10,14 +10,14 @@ import {
   createTemplate,
   getTemplateById,
   updateTemplate,
-} from "../../../services/templateService";
+} from "../../services/templateService";
 import {
   createCard,
   getCardById,
   updateCard,
-} from "../../../services/cardService";
+} from "../../services/cardService";
 import { toast } from "react-toastify";
-import { uploadBase64Image } from "../../../services/uploadServices.js";
+import { uploadBase64Image } from "../../services/uploadServices.js";
 
 export const PanelContext = createContext();
 

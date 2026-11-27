@@ -2,7 +2,7 @@ import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import { toast } from "react-toastify";
-import { postCreateNewUser } from "../../../../services/userService";
+import { postCreateNewUser } from "../../../services/userService";
 
 const ModalCreateUser = ({ show, setShow }) => {
   const [username, setUsername] = useState("");

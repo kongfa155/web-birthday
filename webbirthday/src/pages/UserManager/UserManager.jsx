@@ -1,10 +1,9 @@
-// src/components/Admin/Admin.jsx
 import React, { useState } from "react";
 import AdminTopSection from "./AdminTopSection/AdminTopSection";
 import AdminBottomSection from "./AdminBottomSection/AdminBottomSection";
-import "./Admin.module.css";
+import "./UserManager.module.css";
 
-const Admin = () => {
+const UserManager = () => {
      const [searchTerm, setSearchTerm] = useState("");
     
   return (
@@ -15,4 +14,4 @@ const Admin = () => {
   );
 };
 
-export default Admin;
+export default UserManager;

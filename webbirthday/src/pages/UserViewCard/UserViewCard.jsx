@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCardById } from "../../services/cardService"; // service fetch card theo id
-import WorkSpace from "../workspace/WorkSpace";
+import WorkSpace from "../EditPage/WorkSpace";
 
 const UserViewCard = () => {
   const { id } = useParams();

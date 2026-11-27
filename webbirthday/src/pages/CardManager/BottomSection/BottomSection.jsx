@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import styles from "./BottomSection.module.css";
-import { getCards, updateCard } from "../../../../services/cardService";
+import { getCards, updateCard } from "../../../services/cardService";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useAuth } from "../../../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 
 const BottomSection = () => {
   const [cardsData, setCardsData] = useState([]);

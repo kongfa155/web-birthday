@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./AdminBottomSection.module.css";
 import UserDetailDrawer from "../UserDetailDrawer/UserDetailDrawer";
-import { getUsers, updateUserStatus } from "../../../../services/userService";
+import { getUsers, updateUserStatus } from "../../../services/userService";
 import { toast } from "react-toastify";
 const AdminBottomSection = (props) => {
   const [accounts, setAccounts] = useState([]);
