@@ -2,6 +2,10 @@
 
 Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
 
+## Cập nhật DP-01 (B1): dọn mã nguồn cũ và chuẩn hóa tài liệu
+
+Đã gỡ bỏ nhóm file cũ không còn đường dẫn sử dụng từ entrypoint (`UserViewCard` và các panel editor Fabric cũ, các helper `utils` cũ ở frontend, hai route upload cũ chưa mount ở backend và các file `read.txt` giữ chỗ). Hướng dẫn phân lớp được chuyển sang [tài liệu DP-01](docs/DP-01.md). Editor DOM hiện tại và `LegacyFabricViewer` (hỗ trợ xem thiệp cũ) được giữ nguyên.
+
 ## Editor tạo thiệp
 
 Editor mới dùng React/React DOM 19.3.1, HTML/CSS và Moveable; không cần API key
@@ -44,12 +48,16 @@ webbirthday/
 │   ├── layouts/             # Khung trang với Sidebar và Outlet
 │   ├── pages/
 │   │   ├── Login/
+│   │   ├── Register/
 │   │   ├── CardManager/
 │   │   ├── TemplateManager/
 │   │   ├── UserManager/
 │   │   ├── EditPage/
-│   │   └── UserViewCard/     # Component cũ, chưa nối vào route hiện tại
-│   ├── components/common/   # Giao diện dùng chung
+│   │   └── SharedCard/
+│   ├── components/
+│   │   ├── auth/
+│   │   ├── common/          # Giao diện dùng chung
+│   │   └── design/          # Bộ xem thiệp DOM và LegacyFabricViewer
 │   ├── context/             # Trạng thái xác thực
 │   ├── services/            # Gọi API
 │   ├── utils/
@@ -109,7 +117,7 @@ npm run lint
 Đợt chuẩn hóa chỉ thay vị trí file, tên trang quản lý người dùng và tách
 App/routes/layout. Giữ nguyên URL, cây phân quyền, luồng chức năng, API,
 giao diện, cấu trúc database và các dependency. Không chạy migration.
-Các file ghi chú và helper cũ được giữ để rà soát riêng.
+Trước đó, ở đợt chuẩn hóa cấu trúc ban đầu, các file ghi chú và helper cũ được giữ lại để rà soát riêng; đến checkpoint DP-01 B1 các file không còn sử dụng đã được gỡ bỏ và tài liệu hóa tại [docs/DP-01.md](docs/DP-01.md).
 Trước khi chuẩn hóa, build thành công nhưng lint đã có 40 lỗi. Sau khi bỏ
 hai biến không dùng trong App, lint còn 38 lỗi có sẵn và không phát sinh lỗi mới.
 Các lỗi nghiệp vụ, routing và editor có sẵn cần xử lý trong đợt bảo trì riêng.
