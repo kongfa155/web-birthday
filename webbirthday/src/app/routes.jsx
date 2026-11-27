@@ -9,11 +9,15 @@ import Register from "../pages/Register/Register.jsx";
 import { ProtectedRoute, AdminRoute, GuestRoute } from "./ProtectedRoute.jsx";
 
 const EditPage = lazy(() => import("../pages/EditPage/EditPage.jsx"));
+const SharedCard = lazy(() => import("../pages/SharedCard/SharedCard.jsx"));
 
 function AppRoutes() {
   return (
     <Suspense fallback={<div role="status">Đang tải trang...</div>}>
     <Routes>
+      {/* Public shared card route outside ProtectedRoute and GuestRoute */}
+      <Route path="/share/:token" element={<SharedCard />} />
+
       {/* Public guest-only routes */}
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<Login />} />

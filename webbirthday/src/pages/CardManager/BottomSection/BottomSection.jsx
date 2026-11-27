@@ -5,9 +5,11 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import usePagedList from "../../../hooks/usePagedList";
 import { useAuth } from "../../../context/AuthContext";
+import ShareDialog from "../ShareDialog";
 
 export default function BottomSection() {
   const [deleting, setDeleting] = useState(null);
+  const [sharingCard, setSharingCard] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -45,6 +47,7 @@ export default function BottomSection() {
                 <p>{new Date(card.createdAt).toLocaleDateString("vi-VN")}</p>
                 <button type="button" onClick={() => navigate(`/view/cards/${card._id}`)}>Xem</button>{" "}
                 <button type="button" onClick={() => navigate(`/edit/cards/${card._id}`)}>Chỉnh sửa</button>{" "}
+                <button type="button" disabled={!!deleting} onClick={() => setSharingCard(card)}>Chia sẻ</button>{" "}
                 <button type="button" disabled={!!deleting} onClick={() => remove(card)}>{deleting === card._id ? "Đang xóa..." : "Xóa"}</button>
               </div>
             </article>
@@ -53,6 +56,7 @@ export default function BottomSection() {
       )}
       {error && <p role="alert">Không thể tải thiệp. <button type="button" onClick={retry} disabled={loading}>Thử lại</button></p>}
       {hasMore && <button type="button" onClick={loadMore} disabled={loading}>{loading ? "Đang tải..." : "Xem thêm thiệp"}</button>}
+      {sharingCard && <ShareDialog key={sharingCard._id} card={sharingCard} onClose={() => setSharingCard(null)} />}
     </div>
   );
 }

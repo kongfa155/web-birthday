@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-27",
+  "database": "Webbirthday",
+  "approval": "User explicitly approved googleSub_unique and shareTokenHash_unique in this chat",
+  "beforeGoogleIndex": {
+    "users": {
+      "count": 5,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "username": 1
+          },
+          "name": "username_1",
+          "background": true,
+          "unique": true
+        }
+      ]
+    },
+    "cards": {
+      "count": 3,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "shareTokenHash": 1
+          },
+          "name": "shareTokenHash_unique",
+          "unique": true,
+          "partialFilterExpression": {
+            "shareTokenHash": {
+              "$type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "templates": {
+      "count": 4,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  },
+  "after": {
+    "users": {
+      "count": 5,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "username": 1
+          },
+          "name": "username_1",
+          "background": true,
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "googleSub": 1
+          },
+          "name": "googleSub_unique",
+          "unique": true,
+          "partialFilterExpression": {
+            "googleSub": {
+              "$type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "cards": {
+      "count": 3,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "shareTokenHash": 1
+          },
+          "name": "shareTokenHash_unique",
+          "unique": true,
+          "partialFilterExpression": {
+            "shareTokenHash": {
+              "$type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "templates": {
+      "count": 4,
+      "indexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  },
+  "recordCountsUnchanged": true,
+  "audit": {
+    "TU01": "username_1 full unique simple present; userID_1 absent; legacy userID values retained",
+    "TU02": "googleSub_unique created; no backfill",
+    "TU03": "No migration; legacy unowned card retained",
+    "TU04": "No database migration required",
+    "TU05": "shareTokenHash_unique created by approved script; no card backfill"
+  },
+  "environment": "backend/.env explicitly selects Webbirthday; no credentials recorded"
+}
