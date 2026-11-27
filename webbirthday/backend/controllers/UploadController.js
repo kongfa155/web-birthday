@@ -1,13 +1,13 @@
 import { uploadImage } from "../services/cloudinaryService.js";
+import { isRasterDataUrl } from "../../shared/designSchema.js";
 
-const BASE64_IMAGE_REGEX = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const UploadController = {
   uploadBase64: async (req, res) => {
     try {
       const { base64 } = req.body;
-      if (typeof base64 !== "string" || !BASE64_IMAGE_REGEX.test(base64)) {
+      if (!isRasterDataUrl(base64)) {
         return res.status(400).json({ message: "Chỉ chấp nhận ảnh PNG, JPEG, WebP hoặc GIF dạng base64." });
       }
       if (Buffer.byteLength(base64.split(",")[1], "base64") > MAX_IMAGE_BYTES) {

@@ -1,6 +1,6 @@
 import { toPng } from "html-to-image";
 import { normalizeDomDesign as validateDocumentSchema } from "../../shared/designSchema.js";
-import { uploadBase64Image } from "../services/uploadServices.js";
+import { uploadBase64Image } from "../services/uploadService.js";
 
 export const DOM_SCHEMA_VERSION = 1;
 export const MAX_DESIGN_ELEMENTS = 200;
