@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Moveable from "react-moveable";
 import { toast } from "react-toastify";
 import {
   FaArrowLeft,
@@ -30,34 +29,11 @@ import {
 import DesignRenderer from "../../components/design/DesignRenderer.jsx";
 import DomEditorSidebar from "./DomEditorSidebar.jsx";
 import DomEditorInspector from "./DomEditorInspector.jsx";
+import EditorTransformControls from "./components/EditorTransformControls.jsx";
+import useEditorHistory from "./hooks/useEditorHistory.js";
+import useEditorShortcuts from "./hooks/useEditorShortcuts.js";
+import { computeFitZoom, sanitizeFileName } from "./editorHelpers.js";
 import styles from "./EditPage.module.css";
-
-const MAX_HISTORY_ENTRIES = 60;
-const COALESCE_WINDOW_MS = 600;
-
-function sanitizeFileName(name) {
-  const cleaned = String(name || "thiep-sinh-nhat")
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, "-");
-  return cleaned || "thiep-sinh-nhat";
-}
-
-function isEditableKeyboardTarget(target) {
-  if (!target || typeof target !== "object") return false;
-  if (target.isContentEditable) return true;
-  const tagName = String(target.tagName || "").toUpperCase();
-  return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
-}
-
-function computeFitZoom(viewportEl, doc) {
-  if (!viewportEl || !doc) return 0.5;
-  const vw = Math.max(viewportEl.clientWidth - 56, 120);
-  const vh = Math.max(viewportEl.clientHeight - 56, 120);
-  return Math.max(
-    0.15,
-    Math.min(vw / Math.max(doc.width, 1), vh / Math.max(doc.height, 1), 1.25)
-  );
-}
 
 export default function DomEditor({
   editorMode,
@@ -91,12 +67,17 @@ export default function DomEditor({
     cardDesc: initialDesc,
   });
 
-  const [history, setHistory] = useState(() => ({
-    past: [],
-    present: initialDoc,
-    future: [],
-  }));
-  const [revision, setRevision] = useState(0);
+  const {
+    doc,
+    docRef,
+    revision,
+    revisionRef,
+    canUndo,
+    canRedo,
+    commitDoc,
+    undo,
+    redo,
+  } = useEditorHistory(initialDoc);
   const [savedRevision, setSavedRevision] = useState(0);
 
   const [activeTab, setActiveTab] = useState("templates");
@@ -119,12 +100,6 @@ export default function DomEditor({
   const moveableRef = useRef(null);
   const elementNodesRef = useRef(new Map());
   const interactionRef = useRef(null);
-  const coalesceRef = useRef({ key: null, timestamp: 0 });
-  const revisionRef = useRef(0);
-  const docRef = useRef(history.present);
-
-  const doc = history.present;
-  docRef.current = doc;
 
   const selectedElement = useMemo(
     () => doc.elements.find((el) => el.id === selectedId) || null,
@@ -177,7 +152,7 @@ export default function DomEditor({
 
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [doc.width, doc.height]);
+  }, [doc.width, doc.height, docRef]);
 
   useEffect(() => {
     moveableRef.current?.updateRect();
@@ -193,73 +168,17 @@ export default function DomEditor({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
-  const commitDoc = useCallback((updater, { coalesceKey = null } = {}) => {
-    const now = Date.now();
-    const shouldCoalesce =
-      Boolean(coalesceKey) &&
-      coalesceRef.current.key === coalesceKey &&
-      now - coalesceRef.current.timestamp < COALESCE_WINDOW_MS;
-
-    coalesceRef.current = { key: coalesceKey, timestamp: now };
-
-    setHistory((prev) => {
-      const nextPresent =
-        typeof updater === "function" ? updater(prev.present) : updater;
-      if (!nextPresent || nextPresent === prev.present) {
-        return prev;
-      }
-
-      const nextPast = shouldCoalesce
-        ? prev.past
-        : [...prev.past.slice(-(MAX_HISTORY_ENTRIES - 1)), prev.present];
-
-      return {
-        past: nextPast,
-        present: nextPresent,
-        future: [],
-      };
-    });
-
-    revisionRef.current += 1;
-    setRevision(revisionRef.current);
-  }, []);
-
-  const canUndo = history.past.length > 0;
-  const canRedo = history.future.length > 0;
-
   const handleUndo = useCallback(() => {
     if (saving) return;
-    coalesceRef.current = { key: null, timestamp: 0 };
     setEditingTextId(null);
-    setHistory((prev) => {
-      if (prev.past.length === 0) return prev;
-      const previous = prev.past[prev.past.length - 1];
-      return {
-        past: prev.past.slice(0, -1),
-        present: previous,
-        future: [prev.present, ...prev.future].slice(0, MAX_HISTORY_ENTRIES),
-      };
-    });
-    revisionRef.current += 1;
-    setRevision(revisionRef.current);
-  }, [saving]);
+    undo();
+  }, [saving, undo]);
 
   const handleRedo = useCallback(() => {
     if (saving) return;
-    coalesceRef.current = { key: null, timestamp: 0 };
     setEditingTextId(null);
-    setHistory((prev) => {
-      if (prev.future.length === 0) return prev;
-      const next = prev.future[0];
-      return {
-        past: [...prev.past, prev.present].slice(-MAX_HISTORY_ENTRIES),
-        present: next,
-        future: prev.future.slice(1),
-      };
-    });
-    revisionRef.current += 1;
-    setRevision(revisionRef.current);
-  }, [saving]);
+    redo();
+  }, [saving, redo]);
 
   const handleUpdateElement = useCallback(
     (id, changes, { coalesceKey = null } = {}) => {
@@ -311,7 +230,7 @@ export default function DomEditor({
       setSelectedId(copy.id);
       setEditingTextId(null);
     },
-    [commitDoc, saving]
+    [commitDoc, docRef, saving]
   );
 
   const handleMoveLayer = useCallback(
@@ -345,7 +264,7 @@ export default function DomEditor({
       setSelectedId(element.id);
       setEditingTextId(null);
     },
-    [commitDoc, saving]
+    [commitDoc, docRef, saving]
   );
 
   const handleAddText = useCallback(
@@ -390,7 +309,7 @@ export default function DomEditor({
       });
       handleAddElement(el);
     },
-    [handleAddElement]
+    [docRef, handleAddElement]
   );
 
   const handleAddShape = useCallback(
@@ -408,7 +327,7 @@ export default function DomEditor({
       });
       handleAddElement(el);
     },
-    [handleAddElement]
+    [docRef, handleAddElement]
   );
 
   const handleAddImage = useCallback(
@@ -425,7 +344,7 @@ export default function DomEditor({
       });
       handleAddElement(el);
     },
-    [handleAddElement]
+    [docRef, handleAddElement]
   );
 
   const handleChangePageSize = useCallback(
@@ -484,53 +403,18 @@ export default function DomEditor({
         applyTemplateDesign(tpl.design);
       }
     },
-    [saving, isDirty, applyTemplateDesign]
+    [saving, isDirty, applyTemplateDesign, docRef]
   );
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (saving || confirmState) return;
-      if (isEditableKeyboardTarget(event.target)) return;
-
-      const isMod = event.ctrlKey || event.metaKey;
-
-      if (isMod && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-        return;
-      }
-
-      if (isMod && event.key.toLowerCase() === "y") {
-        event.preventDefault();
-        handleRedo();
-        return;
-      }
-
-      if (
-        (event.key === "Delete" || event.key === "Backspace") &&
-        selectedId &&
-        editingTextId !== selectedId
-      ) {
-        event.preventDefault();
-        handleDeleteElement(selectedId);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
+  useEditorShortcuts({
     saving,
     confirmState,
     selectedId,
     editingTextId,
-    handleUndo,
-    handleRedo,
-    handleDeleteElement,
-  ]);
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onDelete: handleDeleteElement,
+  });
 
   const handleBack = () => {
     if (saving) return;
@@ -895,102 +779,13 @@ export default function DomEditor({
                     selectedElement &&
                     selectedNode &&
                     editingTextId !== selectedElement.id && (
-                      <Moveable
-                        ref={moveableRef}
-                        target={selectedNode}
-                        container={stageViewportRef.current}
-                        rootContainer={stageViewportRef.current}
-                        useResizeObserver
-                        zoom={1}
-                        origin={false}
-                        draggable
-                        resizable
-                        rotatable
-                        throttleDrag={0}
-                        throttleResize={0}
-                        throttleRotate={0}
-                        onDragStart={({ set }) => {
-                          interactionRef.current = {
-                            id: selectedElement.id,
-                            moved: false,
-                            patch: null,
-                          };
-                          set([selectedElement.x, selectedElement.y]);
-                        }}
-                        onDrag={({ target, beforeTranslate }) => {
-                          const x = Math.round(beforeTranslate[0]);
-                          const y = Math.round(beforeTranslate[1]);
-                          target.style.left = `${x}px`;
-                          target.style.top = `${y}px`;
-                          if (interactionRef.current) {
-                            interactionRef.current.moved = true;
-                            interactionRef.current.patch = { x, y };
-                          }
-                        }}
-                        onDragEnd={() => {
-                          const cur = interactionRef.current;
-                          interactionRef.current = null;
-                          if (cur?.moved && cur.patch) {
-                            handleUpdateElement(cur.id, cur.patch);
-                          }
-                        }}
-                        onResizeStart={({ setOrigin, dragStart }) => {
-                          interactionRef.current = {
-                            id: selectedElement.id,
-                            moved: false,
-                            patch: null,
-                          };
-                          setOrigin(["%", "%"]);
-                          if (dragStart) {
-                            dragStart.set([selectedElement.x, selectedElement.y]);
-                          }
-                        }}
-                        onResize={({ target, width, height, drag }) => {
-                          const w = Math.max(1, Math.min(8192, Math.round(width)));
-                          const h = Math.max(1, Math.min(8192, Math.round(height)));
-                          const x = Math.round(drag.beforeTranslate[0]);
-                          const y = Math.round(drag.beforeTranslate[1]);
-                          target.style.width = `${w}px`;
-                          target.style.height = `${h}px`;
-                          target.style.left = `${x}px`;
-                          target.style.top = `${y}px`;
-                          if (interactionRef.current) {
-                            interactionRef.current.moved = true;
-                            interactionRef.current.patch = { x, y, width: w, height: h };
-                          }
-                        }}
-                        onResizeEnd={() => {
-                          const cur = interactionRef.current;
-                          interactionRef.current = null;
-                          if (cur?.moved && cur.patch) {
-                            handleUpdateElement(cur.id, cur.patch);
-                          }
-                        }}
-                        onRotateStart={({ set }) => {
-                          interactionRef.current = {
-                            id: selectedElement.id,
-                            moved: false,
-                            patch: null,
-                          };
-                          set(selectedElement.rotation || 0);
-                        }}
-                        onRotate={({ target, beforeRotate }) => {
-                          const rotation = Math.round(beforeRotate);
-                          target.style.transform = rotation
-                            ? `rotate(${rotation}deg)`
-                            : "";
-                          if (interactionRef.current) {
-                            interactionRef.current.moved = true;
-                            interactionRef.current.patch = { rotation };
-                          }
-                        }}
-                        onRotateEnd={() => {
-                          const cur = interactionRef.current;
-                          interactionRef.current = null;
-                          if (cur?.moved && cur.patch) {
-                            handleUpdateElement(cur.id, cur.patch);
-                          }
-                        }}
+                      <EditorTransformControls
+                        selectedElement={selectedElement}
+                        selectedNode={selectedNode}
+                        stageViewportRef={stageViewportRef}
+                        moveableRef={moveableRef}
+                        interactionRef={interactionRef}
+                        onUpdateElement={handleUpdateElement}
                       />
                     )}
               </div>
