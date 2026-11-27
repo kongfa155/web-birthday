@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom"; // Import Link
 import { FaArrowLeft } from "react-icons/fa"; // Import icon cho nút bấm
 import LayerPanel from "./LayerPanel";
 import PropertiesPanel from "./PropertiesPanel";
-import { useState, createContext, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Toolbox from "./Toolbox";
 import WorkSpace from "./WorkSpace";
 import {
@@ -12,16 +12,14 @@ import {
   updateTemplate,
 } from "../../services/templateService";
 import {
-  createCard,
   getCardById,
   updateCard,
 } from "../../services/cardService";
 import { toast } from "react-toastify";
-import { uploadBase64Image } from "../../services/uploadServices.js";
 
-export const PanelContext = createContext();
+import { PanelContext } from "./PanelContext";
 
-export default function EditPage({ viewOnly = false }) {
+export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
   const [textDetails, setTextDetails] = useState({
   text: "Nhập chữ ở đây",
   fill: "#000000",
@@ -31,17 +29,17 @@ export default function EditPage({ viewOnly = false }) {
   underline: false,
 });
   const navigate = useNavigate();
-  const { id, mode: routeMode } = useParams();
-  const mode = viewOnly ? 'cards' : routeMode;
+  const { id } = useParams();
+  const mode = editorMode;
   const [imageDetails, setImageDetails] = useState({
   url: "",
   scale: 1,
 });
   const [template, setTemplate] = useState(null);
-  const [toggleSaveCard, setToggleSaveCard] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDesc, setCardDesc] = useState("");
-  const [isCard, setIsCard] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [canvasReady, setCanvasReady] = useState(false);
   const [closePanels, setClosePanels] = useState(false);
   const [layerSelected, setLayerSelected] = useState("chưa chọn");
   const [toolSelected, setToolSelected] = useState("chưa chọn");
@@ -54,7 +52,9 @@ export default function EditPage({ viewOnly = false }) {
   const getSizeToolBox = (toolsNum) => `w-[${toolsNum * 64}px]`;
 
   useEffect(() => {
+    let active = true;
     if (id === "blank") {
+      if (mode !== "templates") { navigate("/cards", { replace: true }); return; }
       setTemplate({ fabricEdit: null, name: "Blank Template" });
       return;
     }
@@ -64,23 +64,44 @@ export default function EditPage({ viewOnly = false }) {
         const res =
           mode === "cards" ? await getCardById(id) : await getTemplateById(id);
         
+        if (!active) return;
         setTemplate(res.data);
         setCardName(res.data?.name || res.data?.cardName || "");
         setCardDesc(res.data?.cardDESC || "");
-        setIsCard(mode === "cards");
       } catch (err) {
+        if (!active) return;
         console.error(err);
         toast.error(`Không thể lấy dữ liệu`);
         navigate('/cards');
       }
     };
     fetchData();
+    return () => { active = false; };
   }, [id, mode, navigate]);
 
   if (!template) return <div>Đang tải thiệp...</div>;
 
-  const handleCreateNew = async () => {
-    // ... logic tạo mới giữ nguyên
+  const handleSave = async (event) => {
+    event.preventDefault();
+    if (!cardName.trim()) { toast.error("Vui lòng nhập tên thiết kế."); return; }
+    if (saving || !canvasReady || !fabricRef.current) return;
+    setSaving(true);
+    try {
+      const fabricEdit = fabricRef.current.toJSON();
+      if (mode === "templates") {
+        const data = { name: cardName.trim(), fabricEdit };
+        if (id === "blank") await createTemplate(data);
+        else await updateTemplate(id, data);
+      } else {
+        await updateCard(id, { cardName: cardName.trim(), cardDESC: cardDesc, fabricEdit });
+      }
+      toast.success("Đã lưu thiết kế.");
+      navigate(mode === "templates" ? "/templates" : "/cards");
+    } catch {
+      toast.error("Không thể lưu thiết kế. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,15 +118,18 @@ export default function EditPage({ viewOnly = false }) {
       )}
     
       {/* Popup để lưu card */}
-      {!viewOnly && toggleSaveCard && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[40%] h-[40%] bg-[#f8fafd] z-50 shadow-md shadow-black">
-           {/* ...Nội dung popup... */}
-        </div>
+      {!viewOnly && (
+        <form onSubmit={handleSave} style={{ position: "absolute", zIndex: 50, top: 12, left: "17%", right: "17%", display: "flex", flexWrap: "wrap", gap: 8, padding: 12, background: "white", borderRadius: 8 }}>
+          <input aria-label="Tên thiết kế" placeholder="Tên thiết kế" value={cardName} onChange={(e) => setCardName(e.target.value)} required maxLength={200} disabled={saving} />
+          {mode === "cards" && <input aria-label="Mô tả thiệp" placeholder="Mô tả thiệp" value={cardDesc} onChange={(e) => setCardDesc(e.target.value)} disabled={saving} />}
+          <button type="submit" disabled={saving || !canvasReady}>{saving ? "Đang lưu..." : "Lưu thiết kế"}</button>
+          <button type="button" onClick={() => navigate(mode === "templates" ? "/templates" : "/cards")} disabled={saving}>Quay lại</button>
+        </form>
       )}
 
       <PanelContext.Provider
         value={{
-          toggleSaveCard, setToggleSaveCard, fabricRef, drawBrush, setDrawBrush,
+          handleSave, saving, canvasReady, cardName, setCardName, fabricRef, drawBrush, setDrawBrush,
           closePanels, setClosePanels, layerSelected, setLayerSelected,
           toolSelected, setToolSelected, toolNum, setToolNum, drawingMode,
           setDrawingMode, template, id, mode,rectDetails, setRectDetails,imageDetails, setImageDetails,textDetails, setTextDetails,
@@ -115,6 +139,7 @@ export default function EditPage({ viewOnly = false }) {
           <WorkSpace
             fabricData={template.fabricEdit}
             viewOnly={viewOnly}
+            onReady={setCanvasReady}
           />
         </div>
 

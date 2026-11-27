@@ -4,41 +4,55 @@ import { getTemplates } from "../../../services/templateService";
 import { toast } from "react-toastify";
 import styles from "./TopSection.module.css";
 import { useAuth } from "../../../context/AuthContext"; // Import useAuth
+import { createCard } from "../../../services/cardService";
 
 const TopSection = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const { user } = useAuth(); // Lấy thông tin user
+  const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChooseTemplate = (template) => {
-    setOpenDrawer(false);
+  const handleChooseTemplate = async (template) => {
+    if (creating) return;
+    setCreating(true);
     try {
-      navigate(`/edit/templates/${template._id}`);
-    } catch (err) {
-      toast.error("Không thể chuyển trang", err);
+      const res = await createCard({ templateId: template._id, cardName: `${template.name} - Thiệp của tôi` });
+      navigate(`/edit/cards/${res.data.card._id}`);
+    } catch {
+      toast.error("Không thể tạo thiệp từ mẫu. Vui lòng thử lại.");
+    } finally {
+      setCreating(false);
     }
   };
 
   useEffect(() => {
-    if (user && user.isAdmin) {
+    let active = true;
+    if (user) {
+      setLoading(true);
+      setTemplates([]);
+      setError("");
       getTemplates()
-        .then((res) => setTemplates(res.data))
-        .catch((err) => toast.error("Không thể lấy Template", err));
+        .then((res) => { if (active) setTemplates(res.data); })
+        .catch(() => { if (active) setError("Không thể tải mẫu thiệp. Vui lòng tải lại trang."); })
+        .finally(() => { if (active) setLoading(false); });
     }
-  }, [user]); // Chỉ fetch template nếu là admin
+    return () => { active = false; };
+  }, [user]);
 
   return (
     <div className={styles.topSection}>
       <div className={styles.containWrapper}>
         <h1 className={styles.title}>CARDS</h1>
         {/*Kiểm tra "user.isAdmin" thay vì "user.role" */}
-        {user && user.isAdmin && (
+        {user && (
           <button
             className={styles.pillBtn}
             onClick={() => setOpenDrawer(true)}
           >
-            + NEW
+            + Tạo thiệp từ mẫu
           </button>
         )}
       </div>
@@ -57,15 +71,20 @@ const TopSection = () => {
               </button>
             </div>
             <div className={`${styles.drawerBody} ${styles.horizontalScroll}`}>
+              {loading && <p role="status">Đang tải mẫu thiệp...</p>}
+              {error && <p role="alert">{error}</p>}
+              {!loading && !error && templates.length === 0 && <p>Chưa có mẫu thiệp. Bạn hãy quay lại sau khi Admin bổ sung mẫu nhé.</p>}
               {templates.map((template) => (
-                <div
+                <button
+                  type="button"
+                  disabled={creating}
                   key={template._id}
                   className={styles.templateCard}
                   onClick={() => handleChooseTemplate(template)}
                 >
-                  <img src={template.imgURL} alt={template.name} />
+                  <img src={template.imgURL?.[0] || "/hpbd.png"} alt={template.name} />
                   <p>{template.name}</p>
-                </div>
+                </button>
               ))}
             </div>
           </div>

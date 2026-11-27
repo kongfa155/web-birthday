@@ -1,8 +1,16 @@
 // controllers/CardController.js
 import Card from "../models/Card.js";
+import Template from "../models/Template.js";
+import mongoose from "mongoose";
 import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
 import { editableCards, readableCards } from "../utils/cardAccess.js";
+
+function parseDesign(value) {
+  const design = typeof value === "string" ? JSON.parse(value) : value;
+  if (!design || typeof design !== "object" || !Array.isArray(design.objects)) throw new SyntaxError("Invalid design");
+  return design;
+}
 
 const CardController = {
   // [GET] /api/cards
@@ -38,12 +46,22 @@ const CardController = {
       if (typeof cardName !== "string" || !cardName.trim()) return res.status(400).json({ message: "Vui lòng nhập tên thiệp." });
       if (req.body.owner && String(req.body.owner) !== String(req.user._id)) return res.status(403).json({ message: "Không thể tạo thiệp thay cho tài khoản khác." });
 
-      let fabricURL;
-      let imgURLs = imgURL || [];
+      // Resolve the source on the server; never accept a client-supplied source URL.
+      let source;
+      if (req.body.templateId !== undefined) {
+        if (typeof req.body.templateId !== "string" || !mongoose.isObjectIdOrHexString(req.body.templateId)) return res.status(400).json({ message: "Mã mẫu không hợp lệ." });
+        source = await Template.findById(req.body.templateId);
+        if (!source) return res.status(404).json({ message: "Không tìm thấy mẫu thiệp." });
+      } else if (!req.user.isAdmin) {
+        return res.status(400).json({ message: "Vui lòng chọn mẫu thiệp." });
+      }
 
-      if (fabricEdit) {
+      let fabricURL = source?.fabricEdit;
+      let imgURLs = source?.imgURL || imgURL || [];
+
+      if (fabricEdit !== undefined) {
         const fabricEditObj =
-          typeof fabricEdit === "string" ? JSON.parse(fabricEdit) : fabricEdit;
+          parseDesign(fabricEdit);
 
         // Upload tất cả ảnh trong canvas
         const { fabricEdit: processedEdit, imgURLs: uploadedImgs } =
@@ -53,7 +71,7 @@ const CardController = {
         const fabricJSONStr = JSON.stringify(processedEdit);
         fabricURL = await uploadFabricJSON(fabricJSONStr, cardName);
 
-        if (uploadedImgs.length > 0) imgURLs = uploadedImgs;
+        imgURLs = uploadedImgs;
       }
 
       const newCard = new Card({
@@ -68,7 +86,8 @@ const CardController = {
       await newCard.save();
 
       res.status(201).json({ message: "Card created", card: newCard });
-    } catch {
+    } catch (error) {
+      if (error instanceof SyntaxError) return res.status(400).json({ message: "Dữ liệu thiết kế không hợp lệ." });
       res.status(500).json({ message: "Không thể tạo thiệp." });
     }
   },
@@ -97,9 +116,9 @@ const CardController = {
       }
 
       // Chỉ xử lý Fabric JSON khi gửi dữ liệu mới
-      if (fabricEdit) {
+      if (fabricEdit !== undefined) {
         const fabricEditObj =
-          typeof fabricEdit === "string" ? JSON.parse(fabricEdit) : fabricEdit;
+          parseDesign(fabricEdit);
 
         const { fabricEdit: processedEdit, imgURLs: uploadedImgs } =
           await processFabricEditImages(fabricEditObj);
@@ -108,7 +127,7 @@ const CardController = {
         const fabricURL = await uploadFabricJSON(fabricJSONStr, cardName);
 
         updatedFields.fabricEdit = fabricURL;
-        if (uploadedImgs.length > 0) updatedFields.imgURL = uploadedImgs;
+        updatedFields.imgURL = uploadedImgs;
       }
 
       const updatedCard = await Card.findOneAndUpdate(filter, updatedFields, {
@@ -120,8 +139,20 @@ const CardController = {
         return res.status(404).json({ message: "Card not found" });
 
       res.json({ message: "Card updated", card: updatedCard });
-    } catch {
+    } catch (error) {
+      if (error instanceof SyntaxError) return res.status(400).json({ message: "Dữ liệu thiết kế không hợp lệ." });
       res.status(500).json({ message: "Không thể cập nhật thiệp." });
+    }
+  },
+
+  remove: async (req, res) => {
+    try {
+      const card = await Card.findOneAndDelete({ _id: req.params.id, ...editableCards(req.user) });
+      if (!card) return res.status(404).json({ message: "Không tìm thấy thiệp." });
+      // Shared template images must not be deleted from Cloudinary.
+      return res.json({ message: "Đã xóa thiệp." });
+    } catch {
+      return res.status(500).json({ message: "Không thể xóa thiệp." });
     }
   },
 };

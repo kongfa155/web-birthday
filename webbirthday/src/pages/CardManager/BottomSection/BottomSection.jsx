@@ -1,139 +1,68 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./BottomSection.module.css";
-import { getCards, updateCard } from "../../../services/cardService";
+import { getCards, deleteCard } from "../../../services/cardService";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../context/AuthContext";
 
-const BottomSection = () => {
-  const [cardsData, setCardsData] = useState([]);
+export default function BottomSection() {
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) return;
-
     let active = true;
-    const fetchCards = async () => {
-      try {
-        // Trust already-authorized server response; backend filters cards according to role/ownership
-        const res = await getCards();
-        if (active) {
-          setCardsData(Array.isArray(res.data) ? res.data : []);
-        }
-      } catch (err) {
-        if (active) {
-          toast.error("Không thể lấy danh sách thiệp");
-          console.error(err);
-        }
-      }
-    };
-
-    fetchCards();
-
-    return () => {
-      active = false;
-    };
+    setCards([]);
+    setLoading(true);
+    setError("");
+    getCards()
+      .then((res) => { if (active) setCards(res.data); })
+      .catch(() => { if (active) setError("Không thể tải thiệp. Vui lòng tải lại trang."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [user]);
 
-  const toggleEditable = async (cardId, newState) => {
+  async function remove(card) {
+    if (deleting || !window.confirm(`Xóa thiệp “${card.cardName}”?`)) return;
+    setDeleting(card._id);
     try {
-      await updateCard(cardId, { isEditable: newState });
-      setCardsData((prev) =>
-        prev.map((card) =>
-          card._id === cardId ? { ...card, isEditable: newState } : card
-        )
-      );
-      toast.success(
-        `Card đã được đánh dấu là "${
-          newState ? "Chưa hoàn chỉnh" : "Đã hoàn chỉnh"
-        }"`
-      );
-    } catch (err) {
-      toast.error("Không thể cập nhật trạng thái chỉnh sửa");
-      console.error(err);
+      await deleteCard(card._id);
+      setCards((prev) => prev.filter((item) => item._id !== card._id));
+      toast.success("Đã xóa thiệp.");
+    } catch {
+      toast.error("Không thể xóa thiệp. Vui lòng thử lại.");
+    } finally {
+      setDeleting(null);
     }
-  };
-
-  const CardContent = ({ card }) => (
-    <>
-      <div className={styles.cardTop}>
-        <img
-          src={card.imgURL?.[0] || "https://via.placeholder.com/300x150"}
-          alt={card.cardName}
-        />
-      </div>
-      <div className={styles.divider}></div>
-      <div className={styles.cardBottom}>
-        <p>
-          <strong>{card.cardName}</strong>
-        </p>
-        <p>{new Date(card.createdAt).toLocaleDateString()}</p>
-        <p>{card.owner?.username || "Chưa có chủ"}</p>
-
-        {user.isAdmin && (
-          <button
-            className={`${styles.editableBtn} ${
-              card.isEditable ? styles.notComplete : styles.completed
-            }`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation(); // Ngăn event click bubble lên div cha
-              toggleEditable(card._id, !card.isEditable);
-            }}
-          >
-            {card.isEditable ? "Chưa hoàn chỉnh" : "Đã hoàn chỉnh"}
-          </button>
-        )}
-      </div>
-    </>
-  );
-
-  const handleCardClick = (card) => {
-    // User thường vẫn có thể click vào card đã hoàn thiện
-    if (user.isAdmin) {
-      if (!card.isEditable) return; // Admin chỉ click card chưa hoàn thiện
-      navigate(`/edit/cards/${card._id}`);
-    } else {
-      // User thường → redirect sang trang view-only
-      navigate(`/view/cards/${card._id}`);
-    }
-  };
+  }
 
   return (
     <div className={styles.bottomSection}>
-      <h2 className={styles.sectionTitle}>
-        {user?.isAdmin ? "Recent Cards" : "My Cards"}
-      </h2>
-      <div className={styles.gridContainer}>
-        {cardsData.length === 0 ? (
-          <p className={styles.noCardsMessage}>
-            Chưa có thiệp nào.
-          </p>
-        ) : (
-          cardsData.map((card) => {
-            const isLocked = !card.isEditable && user.isAdmin; // dùng trực tiếp để quyết định UI
-
-            return (
-              <div
-                key={card._id}
-                className={`${styles.rectCard} ${
-                  isLocked ? styles.completedCard : ""
-                }`}
-                style={{
-                  opacity: isLocked ? 0.5 : 1,
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                }}
-                onClick={() => handleCardClick(card)}
-              >
-                <CardContent card={card} />
+      <h2 className={styles.sectionTitle}>Thiệp của tôi</h2>
+      {loading ? <p role="status">Đang tải thiệp...</p> : error ? <p role="alert">{error}</p> : cards.length === 0 ? (
+        <p className={styles.noCardsMessage}>Bạn chưa có thiệp nào. Nhấn “Tạo thiệp từ mẫu” ở phía trên để bắt đầu gửi lời chúc của mình nhé!</p>
+      ) : (
+        <div className={styles.gridContainer}>
+          {cards.map((card) => (
+            <article key={card._id} className={styles.rectCard}>
+              <div className={styles.cardTop}>
+                <img src={card.imgURL?.[0] || "/hpbd.png"} alt={card.cardName} />
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className={styles.divider} />
+              <div className={styles.cardBottom}>
+                <p><strong>{card.cardName}</strong></p>
+                <p>{new Date(card.createdAt).toLocaleDateString("vi-VN")}</p>
+                <button type="button" onClick={() => navigate(`/view/cards/${card._id}`)}>Xem</button>{" "}
+                <button type="button" onClick={() => navigate(`/edit/cards/${card._id}`)}>Chỉnh sửa</button>{" "}
+                <button type="button" disabled={!!deleting} onClick={() => remove(card)}>{deleting === card._id ? "Đang xóa..." : "Xóa"}</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
-
-export default BottomSection;
+}

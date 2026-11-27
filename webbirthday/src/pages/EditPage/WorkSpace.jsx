@@ -1,8 +1,9 @@
 import { useEffect, useRef, useContext } from "react";
 import * as fabric from "fabric";
-import { PanelContext } from "./EditPage";
+import { PanelContext } from "./PanelContext";
+import { toast } from "react-toastify";
 
-export default function WorkSpace({ fabricData, viewOnly }) {
+export default function WorkSpace({ fabricData, viewOnly, onReady }) {
   const canvasRef = useRef(null);
   const canvasInstance = useRef(null);
 
@@ -28,15 +29,21 @@ export default function WorkSpace({ fabricData, viewOnly }) {
     canvasInstance.current = canvas; // lưu vào ref
 
     let isMounted = true;
+    const controller = new AbortController();
+    onReady(false);
 
     async function loadCanvasData() {
-      if (!fabricData) return;
+      // React StrictMode can dispose the first canvas before its promises resolve.
+      await Promise.resolve();
+      if (!isMounted) return;
+      if (!fabricData) { onReady(true); return; }
       let jsonData = null;
 
       try {
         if (typeof fabricData === "string") {
           if (fabricData.startsWith("http")) {
-            const res = await fetch(fabricData);
+            const res = await fetch(fabricData, { signal: controller.signal });
+            if (!res.ok) throw new Error("Cannot load design");
             if (!isMounted) return;
             jsonData = await res.json();
           } else if (fabricData.trim().startsWith("{")) {
@@ -47,7 +54,8 @@ export default function WorkSpace({ fabricData, viewOnly }) {
         }
 
         if (jsonData && isMounted) {
-          canvas.loadFromJSON(jsonData, () => {
+          await canvas.loadFromJSON(jsonData, undefined, { signal: controller.signal });
+          if (isMounted) {
             canvas.renderAll();
             if (viewOnly) {
               canvas.selection = false;
@@ -56,10 +64,13 @@ export default function WorkSpace({ fabricData, viewOnly }) {
                 obj.evented = false;
               });
             }
-          });
+            onReady(true);
+          }
         }
       } catch (e) {
+        if (!isMounted) return;
         console.error(e);
+        if (isMounted) toast.error("Không thể tải thiết kế. Hãy tải lại trang trước khi chỉnh sửa.");
       }
     }
 
@@ -67,11 +78,12 @@ export default function WorkSpace({ fabricData, viewOnly }) {
 
     return () => {
       isMounted = false;
+      controller.abort();
       canvas.dispose();
       fabricRef.current = null;
       canvasInstance.current = null;
     };
-  }, [fabricData, fabricRef, viewOnly]);
+  }, [fabricData, fabricRef, viewOnly, onReady]);
 
   useEffect(() => {
     if (!fabricRef.current || viewOnly) return;
@@ -79,7 +91,7 @@ export default function WorkSpace({ fabricData, viewOnly }) {
     let rect, isDrawing, origX, origY;
 
     function handleMouseDown(opt) {
-      const pointer = canvas.getPointer(opt.e);
+      const pointer = canvas.getScenePoint(opt.e);
 
       // 🧹 Eraser
       if (toolSelected === "eraser" && opt.target) {
@@ -89,9 +101,8 @@ export default function WorkSpace({ fabricData, viewOnly }) {
 
       // 🖼 Image
       if (toolSelected === "image" && imageDetails.url.trim() !== "") {
-        fabric.Image.fromURL(
-          imageDetails.url,
-          (img) => {
+        fabric.FabricImage.fromURL(imageDetails.url, { crossOrigin: "anonymous" }).then((img) => {
+            if (fabricRef.current !== canvas) return;
             img.set({
               left: pointer.x,
               top: pointer.y,
@@ -102,9 +113,7 @@ export default function WorkSpace({ fabricData, viewOnly }) {
             });
             canvas.add(img);
             canvas.requestRenderAll();
-          },
-          { crossOrigin: "anonymous" }
-        );
+          }).catch(() => toast.error("Không thể tải ảnh."));
       }
 
       // 🟩 Rectangle
@@ -144,7 +153,7 @@ export default function WorkSpace({ fabricData, viewOnly }) {
 
     function handleMouseMove(opt) {
       if (!isDrawing || toolSelected !== "rect") return;
-      const pointer = canvas.getPointer(opt.e);
+      const pointer = canvas.getScenePoint(opt.e);
 
       const width = pointer.x - origX;
       const height = pointer.y - origY;
@@ -164,7 +173,7 @@ export default function WorkSpace({ fabricData, viewOnly }) {
       canvas.requestRenderAll();
     }
 
-    function handleMouseUp(opt) {
+    function handleMouseUp() {
       if (toolSelected === "eraser") {
         const activeObjects = canvas.getActiveObjects();
         if (activeObjects.length) {

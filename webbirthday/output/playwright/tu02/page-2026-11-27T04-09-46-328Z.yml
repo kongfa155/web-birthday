@@ -1,0 +1,27 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - button "Thu gọn hoặc mở rộng thanh điều hướng" [ref=f1e6] [cursor=pointer]
+      - list [ref=f1e9]:
+        - listitem [ref=f1e10]:
+          - link "Quản lý thiệp" [ref=f1e11] [cursor=pointer]:
+            - /url: /cards
+        - listitem [ref=f1e16]:
+          - button "Đăng xuất tài khoản" [ref=f1e17] [cursor=pointer]:
+            - generic: Đăng xuất
+    - generic [ref=f1e22]:
+      - generic [ref=f1e23]:
+        - generic [ref=f1e24]:
+          - heading "CARDS" [level=1] [ref=f1e25]
+          - button "+ Tạo thiệp từ mẫu" [active] [ref=f1e26] [cursor=pointer]
+        - generic [ref=f1e30]:
+          - generic [ref=f1e31]:
+            - heading "Choose a Template" [level=2] [ref=f1e32]
+            - button "×" [ref=f1e33] [cursor=pointer]
+          - button [ref=f1e35] [cursor=pointer]:
+            - img "Birthday sample" [ref=f1e36]
+            - paragraph [ref=f1e37]: Birthday sample
+      - generic [ref=f1e27]:
+        - heading "Thiệp của tôi" [level=2] [ref=f1e28]
+        - paragraph [ref=f1e29]: Bạn chưa có thiệp nào. Nhấn “Tạo thiệp từ mẫu” ở phía trên để bắt đầu gửi lời chúc của mình nhé!
+  - region "Notifications Alt+T"

@@ -1,17 +1,10 @@
 import "./EditPage.css";
 import { useState, useContext } from "react";
 import { FabricImage } from "fabric";
-import { PanelContext } from "./EditPage";
+import { PanelContext } from "./PanelContext";
 import { FaSave as SaveIcon } from "react-icons/fa";
 import { FaFileExport as ExportIcon } from "react-icons/fa6";
 import { ChromePicker } from "react-color";
-import {
-  createTemplate,
-  updateTemplate,
-} from "../../services/templateService";
-import { createCard, updateCard } from "../../services/cardService";
-import { BsCardList as CardIcon } from "react-icons/bs";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { uploadBase64Image } from "../../services/uploadServices.js";
 
@@ -68,71 +61,16 @@ function ExportButton() {
 
 
 
-function CardButton() {
-  return (
-    <div>
-      <CardIcon className="panelButton" />
-    </div>
-  );
-}
-
 function SaveButton() {
-  const navigate = useNavigate();
-  const { id, mode, fabricRef, template } = useContext(PanelContext);
-
-  const handleSave = async () => {
-    if (!fabricRef.current) {
-      toast.error("Canvas chưa khởi tạo");
-      return;
-    }
-
-    const fabricJSON = JSON.stringify(fabricRef.current.toJSON());
-
-    try {
-      if (mode === "templates") {
-        // Update template
-        const res = await updateTemplate(id, {
-          name: template?.name || "My Template",
-          owner: null,
-          fabricEdit: fabricJSON,
-          imgURL: template.imgURL,
-        });
-        toast.success("Template đã cập nhật!");
-        navigate("/templates");
-      }
-
-      if (mode === "cards") {
-        // Update card
-        const res = await updateCard(id, {
-          cardName: template?.cardName || "My Card",
-          owner: null,
-          fabricEdit: fabricJSON,
-          imgURL: template.imgURL,
-        });
-        toast.success("Card đã cập nhật!");
-        navigate("/cards");
-      }
-    } catch (err) {
-      console.error("Save error:", err);
-      toast.error("Lưu thất bại, xem console!");
-    }
-  };
-
-  return (
-    <div onClick={handleSave}>
-      <SaveIcon className="panelButton" />
-    </div>
-  );
+  const { handleSave, saving, canvasReady } = useContext(PanelContext);
+  return <button type="button" aria-label="Lưu thiết kế" onClick={handleSave} disabled={saving || !canvasReady}><SaveIcon className="panelButton" /></button>;
 }
 
 export default function PropertiesPanel() {
   const {
-    toggleSaveCard,
-    setToggleSaveCard,
     closePanels,
     layerSelected,
     toolSelected,
-    drawBrush,
     setDrawBrush,textDetails, setTextDetails,
     rectDetails,
     setRectDetails,
@@ -155,9 +93,6 @@ export default function PropertiesPanel() {
             id="propertiesNavigates"
             className="absolute right-4 bottom-0 w-auto h-[4rem] flex flex-row gap-x-8"
           >
-            <div onClick={() => setToggleSaveCard((prev) => !prev)}>
-              <CardButton />
-            </div>
             <SaveButton />
             <ExportButton />
           </div>

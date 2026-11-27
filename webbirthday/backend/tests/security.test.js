@@ -12,6 +12,7 @@ import UserController from "../controllers/UserController.js";
 import { createApp } from "../app.js";
 import { createRateLimiter } from "../middlewares/rateLimit.js";
 import { hasUniqueUsernameIndex } from "../utils/registrationIndex.js";
+import { processFabricEditImages } from "../utils/processFabricEdit.js";
 
 mongoose.set("bufferCommands", false);
 const oldSecret = process.env.JWT_SECRET;
@@ -76,9 +77,12 @@ beforeEach(async () => {
   mock.method(Card, "find", (filter) => query(cards.filter((card) => matches(card, filter))));
   mock.method(Card, "findOne", (filter) => query(cards.find((card) => matches(card, filter)) || null));
   mock.method(Card, "findOneAndUpdate", async (filter, update) => { const card = cards.find((item) => matches(item, filter)); if (card) Object.assign(card, update); return card || null; });
-  mock.method(Card, "aggregate", async () => [...users.keys()].map((_id) => ({ _id, count: cards.filter((card) => String(card.owner) === _id).length })));
+  mock.method(Card, "findOneAndDelete", async (filter) => { const index = cards.findIndex((item) => matches(item, filter)); return index < 0 ? null : cards.splice(index, 1)[0]; });
+  mock.method(Card.prototype, "save", async function () { cards.push(this.toObject()); return this; });
+  mock.method(Card, "aggregate", async () => [...users.keys()].map((_id) => ({ _id, count: cards.filter((card) => String(card.owner) === _id).length, files: cards.filter((card) => String(card.owner) === _id).map((card) => ({ images: card.imgURL, design: card.fabricEdit })) })));
   mock.method(Card, "countDocuments", async ({ owner }) => cards.filter((card) => String(card.owner) === String(owner)).length);
   mock.method(Template, "find", () => query([{ _id: ids.template, name: "Public template" }]));
+  mock.method(Template, "findById", (id) => query(String(id) === ids.template ? { _id: ids.template, name: "Public template", fabricEdit: "https://template.example/design.json", imgURL: ["template-preview"] } : null));
   mock.method(cloudinary.uploader, "upload", async () => { throw new Error("Unexpected cloud write"); });
   mock.method(cloudinary.uploader, "upload_stream", () => { throw new Error("Unexpected cloud write"); });
 });
@@ -140,23 +144,25 @@ test("a signed admin claim cannot elevate a nonadmin; revoked roles take effect 
   const previousAdmin = token(ids.admin, { isAdmin: true }); users.get(ids.admin).isAdmin = false;
   assert.equal((await request("/api/users", { auth: previousAdmin })).status, 403);
 });
-test("user listing and detail are server-scoped to owned completed cards", async () => {
-  const result = await request("/api/cards", { auth: token(ids.alice) }); assert.deepEqual(result.body.map((card) => card._id), [ids.card]);
+test("user listing and detail include owned drafts and completed cards only", async () => {
+  const result = await request("/api/cards", { auth: token(ids.alice) }); assert.deepEqual(result.body.map((card) => card._id), [ids.card, ids.draft]);
   assert.equal((await request(`/api/cards/${ids.card}`, { auth: token(ids.bob) })).status, 404);
-  assert.equal((await request(`/api/cards/${ids.draft}`, { auth: token(ids.alice) })).status, 404);
+  assert.equal((await request(`/api/cards/${ids.draft}`, { auth: token(ids.alice) })).status, 200);
 });
-test("admins can maintain legacy unassigned cards but cannot read or edit other users' cards", async () => {
+test("admins cannot read or edit other users' cards or unassigned legacy cards", async () => {
   const auth = token(ids.admin);
-  assert.deepEqual((await request("/api/cards", { auth })).body.map((card) => card._id), [ids.unassigned]);
+  assert.deepEqual((await request("/api/cards", { auth })).body, []);
   assert.equal((await request(`/api/cards/${ids.card}`, { auth })).status, 404);
   assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { cardName: "stolen", fabricEdit: "{}" } })).status, 404);
-  assert.equal((await request(`/api/cards/${ids.unassigned}`, { auth, method: "PUT", body: { isEditable: false } })).status, 200);
+  assert.equal((await request(`/api/cards/${ids.unassigned}`, { auth, method: "PUT", body: { isEditable: false } })).status, 404);
 });
 test("admin account endpoints return counts and metadata only, never card content or hashes", async () => {
   const auth = token(ids.admin);
   const listing = await request("/api/users", { auth });
   assert.equal(listing.status, 200); assert.equal(listing.body.find((user) => user._id === ids.alice).cardCount, 2);
   const detail = await request(`/api/users/${ids.alice}`, { auth }); assert.equal(detail.body.cardCount, 2);
+  assert.equal(detail.body.fileCount, 2);
+  assert.equal(listing.body.find((user) => user._id === ids.bob).fileCount, 0);
   for (const result of [listing, detail]) {
     const text = JSON.stringify(result.body);
     for (const privateText of ["SHOULD_NOT_LEAK", "fabricEdit", "alice-preview", "Alice private design", users.get(ids.alice).password]) assert.ok(!text.includes(privateText));
@@ -169,10 +175,74 @@ test("account updates cannot change password, role, username or cards; nonadmins
   const result = await request(`/api/users/${ids.alice}`, { auth: token(ids.admin), method: "PUT", body: { isActive: false } });
   assert.equal(result.status, 200); assert.equal(result.body.user.isActive, false); assert.ok(!("password" in result.body.user));
 });
-test("regular users may read templates but cannot mutate cards, templates or admin accounts in TU-01", async () => {
+test("regular users may read templates but cannot mutate templates or admin accounts", async () => {
   const auth = token(ids.alice);
   assert.equal((await request("/api/templates", { auth })).status, 200);
-  for (const [path, method] of [["/api/templates", "POST"], [`/api/templates/${ids.template}`, "PUT"], ["/api/cards", "POST"], [`/api/cards/${ids.card}`, "PUT"], ["/api/users", "POST"]]) assert.equal((await request(path, { auth, method, body: {} })).status, 403);
+  for (const [path, method] of [["/api/templates", "POST"], [`/api/templates/${ids.template}`, "PUT"], ["/api/users", "POST"]]) assert.equal((await request(path, { auth, method, body: {} })).status, 403);
+});
+
+test("user creates an owned card from a server-resolved template without mutating the template", async () => {
+  const auth = token(ids.alice);
+  const created = await request("/api/cards", { auth, method: "POST", body: { templateId: ids.template, cardName: "My card", isEditable: false } });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.card.owner, ids.alice);
+  assert.equal(created.body.card.fabricEdit, "https://template.example/design.json");
+  assert.equal(created.body.card.isEditable, true);
+  const id = created.body.card._id;
+  assert.equal((await request(`/api/cards/${id}`, { auth })).status, 200);
+  assert.equal((await request(`/api/cards/${id}`, { auth: token(ids.admin) })).status, 404);
+  assert.equal((await request(`/api/cards/${id}`, { auth, method: "PUT", body: { cardName: "Edited" } })).status, 200);
+  assert.equal((await request(`/api/templates/${ids.template}`, { auth })).body.name, "Public template");
+});
+
+test("creation validates template and rejects ownership spoofing before uploads", async () => {
+  const auth = token(ids.alice);
+  for (const [body, status] of [
+    [{ cardName: "x" }, 400],
+    [{ cardName: "x", templateId: "bad" }, 400],
+    [{ cardName: "x", templateId: ids.bob }, 404],
+    [{ cardName: "x", templateId: ids.template, owner: ids.bob }, 403],
+    [{ cardName: "x", templateId: ids.template, fabricEdit: "{" }, 400],
+  ]) assert.equal((await request("/api/cards", { auth, method: "POST", body })).status, status);
+});
+
+test("owner may edit completed cards; other users and admin cannot modify, transfer or delete them", async () => {
+  for (const who of [ids.bob, ids.admin]) {
+    for (const method of ["PUT", "DELETE"]) assert.equal((await request(`/api/cards/${ids.card}`, { auth: token(who), method, body: { cardName: "stolen" } })).status, 404);
+  }
+  const auth = token(ids.alice);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { owner: ids.bob } })).status, 403);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { fabricEdit: "broken" } })).status, 400);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { cardName: "Updated", cardDESC: "Personal" } })).status, 200);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "DELETE" })).status, 200);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth })).status, 404);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "DELETE" })).status, 404);
+  assert.equal((await request(`/api/cards/${ids.draft}`, { method: "DELETE" })).status, 401);
+});
+
+test("saving a design uses a new JSON resource without changing the template", async () => {
+  mock.method(cloudinary.uploader, "upload_stream", (options, callback) => {
+    assert.equal(options.overwrite, false);
+    return { end(buffer) { assert.deepEqual(JSON.parse(buffer.toString()).objects, []); callback(null, { secure_url: "https://new.example/design.json" }); } };
+  });
+  const result = await request(`/api/cards/${ids.card}`, { auth: token(ids.alice), method: "PUT", body: { fabricEdit: { objects: [] } } });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.card.fabricEdit, "https://new.example/design.json");
+  assert.deepEqual(result.body.card.imgURL, []);
+});
+
+test("file statistics deduplicate shared image and JSON references within each owner", async () => {
+  cards.push({ _id: ids.template, owner: ids.alice, fabricEdit: cards[0].fabricEdit, imgURL: ["alice-preview", "alice-preview", "new-image"] });
+  const detail = await request(`/api/users/${ids.alice}`, { auth: token(ids.admin) });
+  assert.equal(detail.body.cardCount, 3);
+  assert.equal(detail.body.fileCount, 3);
+  assert.ok(!JSON.stringify(detail.body).includes("new-image"));
+});
+
+test("Fabric 7 images in groups and backgrounds are included; failed uploads abort save", async () => {
+  const result = await processFabricEditImages({ objects: [{ type: "Group", objects: [{ type: "Image", src: "nested-image" }] }], backgroundImage: { type: "image", src: "background-image" } });
+  assert.deepEqual(result.imgURLs, ["nested-image", "background-image"]);
+  await assert.rejects(() => processFabricEditImages({ objects: [{ type: "Image", src: "data:image/png;base64,YQ==" }] }), /Unexpected cloud write/);
 });
 test("invalid IDs return 400 and uploads reject remote URLs/SVG before contacting Cloudinary", async () => {
   assert.equal((await request("/api/cards/bad-id", { auth: token(ids.alice) })).status, 400);

@@ -29,9 +29,10 @@ function AppRoutes() {
           </Route>
         </Route>
 
-        {/* Editor remains ADMIN-ONLY for this TU-01 */}
+        <Route path="/edit/cards/:id" element={<EditPage editorMode="cards" />} />
+        {/* Template editing remains admin-only. */}
         <Route element={<AdminRoute />}>
-          <Route path="/edit/:mode/:id" element={<EditPage />} />
+          <Route path="/edit/templates/:id" element={<EditPage editorMode="templates" />} />
         </Route>
 
         {/* Read-only card view for authenticated users */}

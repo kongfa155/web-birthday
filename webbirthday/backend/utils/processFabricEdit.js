@@ -6,25 +6,27 @@ export const processFabricEditImages = async (fabricEdit) => {
 
   const imgURLs = [];
 
-  for (const obj of fabricEdit.objects) {
-    if (obj.type === "image" && obj.src) {
+  async function visit(obj) {
+    if (!obj || typeof obj !== "object") return;
+    if (String(obj.type).toLowerCase() === "image" && typeof obj.src === "string" && obj.src) {
       const src = obj.src;
       // Nếu là ảnh base64, upload lên Cloudinary
       if (src.startsWith("data:image")) {
-        try {
           const uploadResponse = await cloudinary.uploader.upload(src, {
             folder: "fabric_images",
           });
           obj.src = uploadResponse.secure_url;
           imgURLs.push(uploadResponse.secure_url);
-        } catch (err) {
-          console.error("Upload image error:", err);
-        }
       } else {
         imgURLs.push(src);
       }
     }
+    for (const child of obj.objects || []) await visit(child);
+    if (obj.backgroundImage) await visit(obj.backgroundImage);
+    if (obj.overlayImage) await visit(obj.overlayImage);
+    if (obj.clipPath) await visit(obj.clipPath);
   }
+  await visit(fabricEdit);
 
   return { fabricEdit, imgURLs };
 };

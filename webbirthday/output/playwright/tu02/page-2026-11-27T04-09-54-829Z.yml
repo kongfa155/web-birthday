@@ -1,0 +1,34 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e39]:
+    - generic [ref=f1e40]:
+      - textbox "Tên thiết kế" [ref=f1e41]: My birthday card
+      - textbox "Mô tả thiệp" [ref=f1e42]
+      - button "Lưu thiết kế" [ref=f1e43] [cursor=pointer]
+      - button "Quay lại" [ref=f1e44] [cursor=pointer]
+    - generic [ref=f1e51]:
+      - textbox [ref=f1e60]: Tên thiệp
+      - separator [ref=f1e62]
+      - generic [ref=f1e63]:
+        - paragraph [ref=f1e64]: Layers
+        - paragraph [ref=f1e65]: (5)
+      - generic [ref=f1e67]:
+        - textbox [ref=f1e70]: Layer 1
+        - textbox [ref=f1e73]: Layer 2
+        - textbox [ref=f1e76]: Layer 3
+        - textbox [ref=f1e79]: Layer 4
+        - textbox [ref=f1e82]: Layer 5
+    - generic [ref=f1e84]:
+      - generic [ref=f1e85] [cursor=pointer]
+      - generic [ref=f1e88] [cursor=pointer]
+      - generic [ref=f1e91] [cursor=pointer]
+      - generic [ref=f1e94] [cursor=pointer]
+      - generic [ref=f1e98] [cursor=pointer]
+      - generic [ref=f1e101] [cursor=pointer]
+      - generic [ref=f1e104] [cursor=pointer]: +
+      - generic [ref=f1e105] [cursor=pointer]: "-"
+    - generic [ref=f1e108]:
+      - button "Lưu thiết kế" [ref=f1e110] [cursor=pointer]
+      - generic [ref=f1e116]:
+        - paragraph [ref=f1e117]: "Đang chọn layer: chưa chọn"
+        - paragraph [ref=f1e118]: "Tool đang chọn: chưa chọn"
+  - region "Notifications Alt+T"

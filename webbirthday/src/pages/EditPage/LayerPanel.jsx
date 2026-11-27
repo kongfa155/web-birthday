@@ -1,14 +1,14 @@
 import './EditPage.css'
-import {useState, useContext, createContext, useEffect} from "react";
+import {useState, useContext, useEffect} from "react";
 import {BsLayoutSidebarInset as CloseLayerIcon} from "react-icons/bs";
 import {FaHome as HomeIcon} from "react-icons/fa";
 import {useNavigate} from "react-router-dom";
-import { PanelContext } from './EditPage';
+import { PanelContext } from './PanelContext';
 
 export function HomeButton() {
     const navigate = useNavigate();
     return (
-        <HomeIcon className="panelButton" onClick={()=>{navigate("/users")}}></HomeIcon> 
+        <HomeIcon className="panelButton" onClick={()=>{navigate("/cards")}}></HomeIcon>
     );
 }
 
@@ -21,21 +21,13 @@ export default function LayerPanel() {
         "Layer 4",
         "Layer 5"
     ]; // layers tam thoi
-    const [cardName, setCardName] = useState("Tên thiệp"); // Ten thiep tam thoi
-    const [validName, setValidName] = useState(true); // Kiểm tra tên FIle có hợp lệ không
     const [layerNum, setLayerNum] = useState(0);
-    const {closePanels, setClosePanels} = useContext(PanelContext);
+    const {closePanels, setClosePanels, cardName, setCardName} = useContext(PanelContext);
 
     const handleChangeName = (e) => {
         const value = e.target.value;
-        const regex = /^[a-zA-Z0-9À-ỹ\s]{0,32}$/;
-        if (regex.test(value)) {
+        if (value.length <= 200) {
             setCardName(value);
-            setValidName(true);
-        } else {
-            if (validName) {
-                validName(false);
-            }
         }
     }
     useEffect(() => {
@@ -125,7 +117,7 @@ export function Layer({
         const regex = /^[a-zA-Z0-9À-ỹ\s]{0,32}$/;
         if (regex.test(value)) {
             setLayerName(value);
-        } else {}
+        }
     }
     return (
         <div> {

@@ -3,7 +3,7 @@ import { FaImage as ImageIcon} from "react-icons/fa";
 import { MdOutlineRectangle as RectangleIcon } from "react-icons/md";
 import { IoText as TextIcon } from "react-icons/io5";
 import { useContext } from "react";
-import { PanelContext } from "./EditPage";
+import { PanelContext } from "./PanelContext";
 import { FaEraser as EraserIcon} from "react-icons/fa";
 import { FaHandSparkles as HandIcon } from "react-icons/fa";
 

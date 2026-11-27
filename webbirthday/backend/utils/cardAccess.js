@@ -1,9 +1,7 @@
-// Legacy unassigned cards can still be maintained by admins. Assigned cards are private.
+// Every card is private to its owner, including drafts and legacy records.
 export function readableCards(user) {
-  return user.isAdmin
-    ? { $or: [{ owner: user._id }, { owner: null }] }
-    : { owner: user._id, isEditable: false };
+  return { owner: user._id };
 }
 export function editableCards(user) {
-  return { $or: [{ owner: user._id }, { owner: null }] };
+  return { owner: user._id };
 }
