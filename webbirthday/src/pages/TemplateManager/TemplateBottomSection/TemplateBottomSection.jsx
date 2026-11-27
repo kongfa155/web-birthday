@@ -1,21 +1,18 @@
 import { Link } from "react-router-dom";
-import React, { useEffect, useState } from "react";
 import styles from "./TemplateBottomSection.module.css";
 import { getTemplates } from "../../../services/templateService";
-import { toast } from "react-toastify";
+import usePagedList from "../../../hooks/usePagedList";
+import { useAuth } from "../../../context/AuthContext";
 
 const TemplateBottomSection = () => {
-  const [templates, setTemplates] = useState([]);
-
-  useEffect(() => {
-    getTemplates()
-      .then((res) => setTemplates(res.data))
-      .catch((err) => toast.error("Error fetching templates:", err));
-  }, []);
+  const { user } = useAuth();
+  const { items: templates, loading, error, hasMore, loadMore, retry } = usePagedList(getTemplates, user?._id);
 
   return (
     <div className={styles.bottomSection}>
       <h2 className={styles.sectionTitle}>All Templates</h2>
+      {loading && <p role="status">Đang tải mẫu thiệp...</p>}
+      {!loading && !error && templates.length === 0 && <p>Chưa có mẫu thiệp nào.</p>}
       <div className={styles.gridContainer}>
         {templates.map((template) => (
           <Link
@@ -24,10 +21,10 @@ const TemplateBottomSection = () => {
             className={styles.rectCard}
           >
             <div className={styles.cardTop}>
-              <img
+              <img loading="lazy" decoding="async"
                 src={
                   template.imgURL?.[0] ||
-                  "https://via.placeholder.com/300x150?text=Template"
+                  "/hpbd.png"
                 }
                 alt={template.name}
               />
@@ -43,6 +40,8 @@ const TemplateBottomSection = () => {
           </Link>
         ))}
       </div>
+      {error && <p role="alert">Không thể tải mẫu thiệp. <button type="button" onClick={retry} disabled={loading}>Thử lại</button></p>}
+      {hasMore && <button type="button" onClick={loadMore} disabled={loading}>{loading ? "Đang tải..." : "Xem thêm mẫu"}</button>}
     </div>
   );
 };

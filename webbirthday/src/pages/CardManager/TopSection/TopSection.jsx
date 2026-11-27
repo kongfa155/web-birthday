@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTemplates } from "../../../services/templateService";
 import { toast } from "react-toastify";
 import styles from "./TopSection.module.css";
 import { useAuth } from "../../../context/AuthContext"; // Import useAuth
+import usePagedList from "../../../hooks/usePagedList";
 import { createCard } from "../../../services/cardService";
 
 const TopSection = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState([]);
   const { user } = useAuth(); // Lấy thông tin user
   const [creating, setCreating] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { items: templates, loading, error, hasMore, loadMore, retry } = usePagedList(getTemplates, user?._id, openDrawer);
 
   const handleChooseTemplate = async (template) => {
     if (creating) return;
@@ -28,19 +27,6 @@ const TopSection = () => {
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    if (user) {
-      setLoading(true);
-      setTemplates([]);
-      setError("");
-      getTemplates()
-        .then((res) => { if (active) setTemplates(res.data); })
-        .catch(() => { if (active) setError("Không thể tải mẫu thiệp. Vui lòng tải lại trang."); })
-        .finally(() => { if (active) setLoading(false); });
-    }
-    return () => { active = false; };
-  }, [user]);
 
   return (
     <div className={styles.topSection}>
@@ -72,7 +58,7 @@ const TopSection = () => {
             </div>
             <div className={`${styles.drawerBody} ${styles.horizontalScroll}`}>
               {loading && <p role="status">Đang tải mẫu thiệp...</p>}
-              {error && <p role="alert">{error}</p>}
+              {error && <p role="alert">Không thể tải mẫu thiệp. <button type="button" onClick={retry} disabled={loading}>Thử lại</button></p>}
               {!loading && !error && templates.length === 0 && <p>Chưa có mẫu thiệp. Bạn hãy quay lại sau khi Admin bổ sung mẫu nhé.</p>}
               {templates.map((template) => (
                 <button
@@ -82,10 +68,11 @@ const TopSection = () => {
                   className={styles.templateCard}
                   onClick={() => handleChooseTemplate(template)}
                 >
-                  <img src={template.imgURL?.[0] || "/hpbd.png"} alt={template.name} />
+                  <img loading="lazy" decoding="async" src={template.imgURL?.[0] || "/hpbd.png"} alt={template.name} />
                   <p>{template.name}</p>
                 </button>
               ))}
+              {hasMore && <button type="button" disabled={loading} onClick={loadMore}>{loading ? "Đang tải..." : "Xem thêm mẫu"}</button>}
             </div>
           </div>
           <div

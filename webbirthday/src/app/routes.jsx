@@ -1,15 +1,18 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import MainLayout from "../layouts/MainLayout.jsx";
 import UserManager from "../pages/UserManager/UserManager.jsx";
 import CardManager from "../pages/CardManager/CardManager.jsx";
 import TemplateManager from "../pages/TemplateManager/TemplateManager.jsx";
-import EditPage from "../pages/EditPage/EditPage.jsx";
 import Login from "../pages/Login/Login.jsx";
 import Register from "../pages/Register/Register.jsx";
 import { ProtectedRoute, AdminRoute, GuestRoute } from "./ProtectedRoute.jsx";
 
+const EditPage = lazy(() => import("../pages/EditPage/EditPage.jsx"));
+
 function AppRoutes() {
   return (
+    <Suspense fallback={<div role="status">Đang tải trang...</div>}>
     <Routes>
       {/* Public guest-only routes */}
       <Route element={<GuestRoute />}>
@@ -45,6 +48,7 @@ function AppRoutes() {
       {/* Not found fallback */}
       <Route path="*" element={<Navigate to="/cards" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 

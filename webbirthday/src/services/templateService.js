@@ -4,7 +4,7 @@ import axios from "../utils/axiosCustomize.js";
 const API_URL = "/api/templates";
 
 // [GET] tất cả template
-export const getTemplates = () => axios.get(API_URL);
+export const getTemplates = (params, signal) => axios.get(API_URL, { params, signal });
 
 // [GET] theo id
 export const getTemplateById = (id) => axios.get(`${API_URL}/${id}`);

@@ -1,0 +1,49 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - button "Thu gọn hoặc mở rộng thanh điều hướng" [ref=f3e7] [cursor=pointer]
+      - list [ref=f3e10]:
+        - listitem [ref=f3e11]:
+          - link "Quản lý User" [ref=f3e12] [cursor=pointer]:
+            - /url: /users
+        - listitem [ref=f3e16]:
+          - link "Quản lý thiệp" [ref=f3e17] [cursor=pointer]:
+            - /url: /cards
+        - listitem [ref=f3e22]:
+          - link "Quản lý Template" [ref=f3e23] [cursor=pointer]:
+            - /url: /templates
+        - listitem [ref=f3e26]:
+          - button "Đăng xuất tài khoản" [ref=f3e27] [cursor=pointer]:
+            - generic: Đăng xuất
+    - generic [ref=f3e32]:
+      - generic [ref=f3e36]:
+        - heading "TEMPLATES" [level=1] [ref=f3e37]
+        - button "+ NEW" [ref=f3e38] [cursor=pointer]
+      - generic [ref=f3e40]:
+        - heading "All Templates" [level=2] [ref=f3e41]
+        - generic [ref=f3e42]:
+          - link [ref=f3e43] [cursor=pointer]:
+            - /url: /edit/templates/000000000000000000000003
+            - img "Template 3" [ref=f3e45]
+            - generic [ref=f3e47]:
+              - paragraph [ref=f3e48]:
+                - strong [ref=f3e49]: Template 3
+              - paragraph [ref=f3e50]: 11/27/2026
+              - paragraph [ref=f3e51]: Unknown
+          - link [ref=f3e52] [cursor=pointer]:
+            - /url: /edit/templates/000000000000000000000002
+            - img "Template 2" [ref=f3e54]
+            - generic [ref=f3e56]:
+              - paragraph [ref=f3e57]:
+                - strong [ref=f3e58]: Template 2
+              - paragraph [ref=f3e59]: 11/27/2026
+              - paragraph [ref=f3e60]: Unknown
+          - link [ref=f3e62] [cursor=pointer]:
+            - /url: /edit/templates/000000000000000000000001
+            - img "Template 1" [ref=f3e64]
+            - generic [ref=f3e66]:
+              - paragraph [ref=f3e67]:
+                - strong [ref=f3e68]: Template 1
+              - paragraph [ref=f3e69]: 11/27/2026
+              - paragraph [ref=f3e70]: Unknown
+  - region "Notifications Alt+T"

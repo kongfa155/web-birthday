@@ -2,6 +2,7 @@
 import Template from "../models/Template.js";
 import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
+import { parsePage, listPage, TEMPLATE_LIST_FIELDS } from "../utils/listPage.js";
 
 const TemplateController = {
   // [POST] /api/templates
@@ -42,9 +43,10 @@ const TemplateController = {
 
   // [GET] /api/templates
   getAll: async (req, res) => {
+    const page = parsePage(req.query);
+    if (!page) return res.status(400).json({ message: "Tham số phân trang không hợp lệ." });
     try {
-      const templates = await Template.find().populate("owner", "username");
-      res.json(templates);
+      res.json(await listPage(Template, {}, TEMPLATE_LIST_FIELDS, page, { path: "owner", select: "username" }));
     } catch {
       res.status(500).json({ message: "Không thể lấy danh sách mẫu thiệp." });
     }

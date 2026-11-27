@@ -13,6 +13,7 @@ import { createApp } from "../app.js";
 import { createRateLimiter } from "../middlewares/rateLimit.js";
 import { hasUniqueUsernameIndex } from "../utils/registrationIndex.js";
 import { processFabricEditImages } from "../utils/processFabricEdit.js";
+import { listQuery } from "./helpers/listQuery.js";
 
 mongoose.set("bufferCommands", false);
 const oldSecret = process.env.JWT_SECRET;
@@ -74,14 +75,14 @@ beforeEach(async () => {
     if ([...users.values()].some((user) => user.username === this.username)) throw Object.assign(new Error("duplicate"), { code: 11000 });
     saves += 1; users.set(String(this._id), this); return this;
   });
-  mock.method(Card, "find", (filter) => query(cards.filter((card) => matches(card, filter))));
+  mock.method(Card, "find", (filter, projection) => listQuery(cards, filter, projection));
   mock.method(Card, "findOne", (filter) => query(cards.find((card) => matches(card, filter)) || null));
   mock.method(Card, "findOneAndUpdate", async (filter, update) => { const card = cards.find((item) => matches(item, filter)); if (card) Object.assign(card, update); return card || null; });
   mock.method(Card, "findOneAndDelete", async (filter) => { const index = cards.findIndex((item) => matches(item, filter)); return index < 0 ? null : cards.splice(index, 1)[0]; });
   mock.method(Card.prototype, "save", async function () { cards.push(this.toObject()); return this; });
   mock.method(Card, "aggregate", async () => [...users.keys()].map((_id) => ({ _id, count: cards.filter((card) => String(card.owner) === _id).length, files: cards.filter((card) => String(card.owner) === _id).map((card) => ({ images: card.imgURL, design: card.fabricEdit })) })));
   mock.method(Card, "countDocuments", async ({ owner }) => cards.filter((card) => String(card.owner) === String(owner)).length);
-  mock.method(Template, "find", () => query([{ _id: ids.template, name: "Public template" }]));
+  mock.method(Template, "find", (filter, projection) => listQuery([{ _id: ids.template, name: "Public template" }], filter, projection));
   mock.method(Template, "findById", (id) => query(String(id) === ids.template ? { _id: ids.template, name: "Public template", fabricEdit: "https://template.example/design.json", imgURL: ["template-preview"] } : null));
   mock.method(cloudinary.uploader, "upload", async () => { throw new Error("Unexpected cloud write"); });
   mock.method(cloudinary.uploader, "upload_stream", () => { throw new Error("Unexpected cloud write"); });
@@ -145,13 +146,57 @@ test("a signed admin claim cannot elevate a nonadmin; revoked roles take effect 
   assert.equal((await request("/api/users", { auth: previousAdmin })).status, 403);
 });
 test("user listing and detail include owned drafts and completed cards only", async () => {
-  const result = await request("/api/cards", { auth: token(ids.alice) }); assert.deepEqual(result.body.map((card) => card._id), [ids.card, ids.draft]);
+  const result = await request("/api/cards", { auth: token(ids.alice) }); assert.deepEqual(result.body.items.map((card) => card._id), [ids.draft, ids.card]);
   assert.equal((await request(`/api/cards/${ids.card}`, { auth: token(ids.bob) })).status, 404);
   assert.equal((await request(`/api/cards/${ids.draft}`, { auth: token(ids.alice) })).status, 200);
 });
+
+test("card pages are bounded, newest ID first, private and omit design payloads", async () => {
+  cards = Array.from({ length: 61 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), owner: i % 2 ? ids.bob : ids.alice, cardName: `Card ${i}`, imgURL: ["preview", "extra-image"], fabricEdit: "PRIVATE_DESIGN", cardDESC: "HEAVY_DESCRIPTION" }));
+  const auth = token(ids.alice);
+  const first = await request("/api/cards", { auth });
+  assert.equal(first.body.items.length, 24);
+  assert.ok(first.body.nextCursor);
+  assert.deepEqual(first.body.items[0].imgURL, ["preview"]);
+  assert.ok(!JSON.stringify(first.body).includes("PRIVATE_DESIGN"));
+  assert.ok(!JSON.stringify(first.body).includes("HEAVY_DESCRIPTION"));
+  assert.ok(!("owner" in first.body.items[0]));
+  const second = await request(`/api/cards?before=${first.body.nextCursor}`, { auth });
+  assert.equal(second.body.items.length, 7);
+  assert.equal(second.body.nextCursor, null);
+  const all = [...first.body.items, ...second.body.items].map((card) => card._id);
+  assert.equal(new Set(all).size, 31);
+  assert.deepEqual(all, cards.filter((card) => card.owner === ids.alice).map((card) => card._id).sort().reverse());
+  assert.equal((await request("/api/cards", { auth: token(ids.admin) })).body.items.length, 0);
+});
+
+test("pagination validates untrusted query values for both lists", async () => {
+  for (const path of ["/api/cards", "/api/templates"]) {
+    for (const params of ["limit=0", "limit=101", "limit=-1", "limit=1.5", "limit=1e2", "limit=24&limit=24", "before=bad", "before=", "before[x]=1"]) {
+      assert.equal((await request(`${path}?${params}`, { auth: token(ids.alice) })).status, 400, `${path}?${params}`);
+    }
+  }
+});
+
+test("template list uses the same pagination and small projection; detail still supplies design", async () => {
+  const templates = Array.from({ length: 5 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), name: `Template ${i}`, imgURL: ["preview", "extra"], fabricEdit: "large-json" }));
+  mock.method(Template, "find", (filter, projection) => listQuery(templates, filter, projection));
+  const auth = token(ids.alice);
+  let before;
+  const seen = [];
+  do {
+    const result = await request(`/api/templates?limit=2${before ? `&before=${before}` : ""}`, { auth });
+    assert.equal(result.status, 200);
+    for (const item of result.body.items) { assert.ok(!("fabricEdit" in item)); assert.equal(item.imgURL.length, 1); seen.push(item._id); }
+    before = result.body.nextCursor;
+  } while (before);
+  assert.equal(new Set(seen).size, 5);
+  const detail = await request(`/api/templates/${ids.template}`, { auth });
+  assert.equal(detail.body.fabricEdit, "https://template.example/design.json");
+});
 test("admins cannot read or edit other users' cards or unassigned legacy cards", async () => {
   const auth = token(ids.admin);
-  assert.deepEqual((await request("/api/cards", { auth })).body, []);
+  assert.deepEqual((await request("/api/cards", { auth })).body, { items: [], nextCursor: null });
   assert.equal((await request(`/api/cards/${ids.card}`, { auth })).status, 404);
   assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { cardName: "stolen", fabricEdit: "{}" } })).status, 404);
   assert.equal((await request(`/api/cards/${ids.unassigned}`, { auth, method: "PUT", body: { isEditable: false } })).status, 404);

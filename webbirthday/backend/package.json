@@ -4,6 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "benchmark:lists": "node benchmarks/lists.js",
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js"

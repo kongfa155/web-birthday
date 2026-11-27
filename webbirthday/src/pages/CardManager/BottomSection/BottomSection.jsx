@@ -1,29 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./BottomSection.module.css";
 import { getCards, deleteCard } from "../../../services/cardService";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import usePagedList from "../../../hooks/usePagedList";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function BottomSection() {
-  const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let active = true;
-    setCards([]);
-    setLoading(true);
-    setError("");
-    getCards()
-      .then((res) => { if (active) setCards(res.data); })
-      .catch(() => { if (active) setError("Không thể tải thiệp. Vui lòng tải lại trang."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [user]);
+  const { items: cards, setItems: setCards, loading, error, hasMore, loadMore, retry } = usePagedList(getCards, user?._id);
 
   async function remove(card) {
     if (deleting || !window.confirm(`Xóa thiệp “${card.cardName}”?`)) return;
@@ -42,14 +30,14 @@ export default function BottomSection() {
   return (
     <div className={styles.bottomSection}>
       <h2 className={styles.sectionTitle}>Thiệp của tôi</h2>
-      {loading ? <p role="status">Đang tải thiệp...</p> : error ? <p role="alert">{error}</p> : cards.length === 0 ? (
+      {loading && cards.length === 0 ? <p role="status">Đang tải thiệp...</p> : cards.length === 0 && !error ? (
         <p className={styles.noCardsMessage}>Bạn chưa có thiệp nào. Nhấn “Tạo thiệp từ mẫu” ở phía trên để bắt đầu gửi lời chúc của mình nhé!</p>
       ) : (
         <div className={styles.gridContainer}>
           {cards.map((card) => (
             <article key={card._id} className={styles.rectCard}>
               <div className={styles.cardTop}>
-                <img src={card.imgURL?.[0] || "/hpbd.png"} alt={card.cardName} />
+                <img loading="lazy" decoding="async" src={card.imgURL?.[0] || "/hpbd.png"} alt={card.cardName} />
               </div>
               <div className={styles.divider} />
               <div className={styles.cardBottom}>
@@ -63,6 +51,8 @@ export default function BottomSection() {
           ))}
         </div>
       )}
+      {error && <p role="alert">Không thể tải thiệp. <button type="button" onClick={retry} disabled={loading}>Thử lại</button></p>}
+      {hasMore && <button type="button" onClick={loadMore} disabled={loading}>{loading ? "Đang tải..." : "Xem thêm thiệp"}</button>}
     </div>
   );
 }

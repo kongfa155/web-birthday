@@ -1,0 +1,4 @@
+- generic [ref=f1e2]:
+  - link "Back to cards" [ref=f1e83] [cursor=pointer]:
+    - /url: /cards
+  - region "Notifications Alt+T"

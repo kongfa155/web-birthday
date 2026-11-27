@@ -1,0 +1,48 @@
+{
+  "measuredAt": "2026-11-27T04:21:56.101Z",
+  "runtime": "v24.14.1",
+  "scope": "Loopback HTTP, mocked MongoDB, no database/network/cloud load; includes JWT, serialization and body transfer; excludes browser render, Atlas, indexes, CDN and real canvas load.",
+  "fixture": {
+    "cardsOfOneOwner": 1000,
+    "templates": 1000,
+    "imageUrlsPerItem": 20,
+    "cardDescriptionChars": 600,
+    "pageSize": 24
+  },
+  "cards": {
+    "before": {
+      "requests": 100,
+      "concurrency": 10,
+      "bytesPerResponse": 2366581,
+      "p50Ms": 112.44,
+      "p95Ms": 124.39,
+      "requestsPerSecond": 87.94
+    },
+    "after": {
+      "requests": 100,
+      "concurrency": 10,
+      "bytesPerResponse": 4827,
+      "p50Ms": 7.49,
+      "p95Ms": 8.51,
+      "requestsPerSecond": 1301.68
+    }
+  },
+  "templates": {
+    "before": {
+      "requests": 100,
+      "concurrency": 10,
+      "bytesPerResponse": 1730581,
+      "p50Ms": 79.91,
+      "p95Ms": 89.73,
+      "requestsPerSecond": 123.77
+    },
+    "after": {
+      "requests": 100,
+      "concurrency": 10,
+      "bytesPerResponse": 5787,
+      "p50Ms": 6.04,
+      "p95Ms": 7.16,
+      "requestsPerSecond": 1622.88
+    }
+  }
+}

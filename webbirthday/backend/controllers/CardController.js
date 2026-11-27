@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
 import { editableCards, readableCards } from "../utils/cardAccess.js";
+import { parsePage, listPage, CARD_LIST_FIELDS } from "../utils/listPage.js";
 
 function parseDesign(value) {
   const design = typeof value === "string" ? JSON.parse(value) : value;
@@ -15,12 +16,10 @@ function parseDesign(value) {
 const CardController = {
   // [GET] /api/cards
   getAll: async (req, res) => {
+    const page = parsePage(req.query);
+    if (!page) return res.status(400).json({ message: "Tham số phân trang không hợp lệ." });
     try {
-      const cards = await Card.find(
-        readableCards(req.user),
-        "cardName imgURL cardDESC owner createdAt fabricEdit isEditable"
-      ).populate("owner", "username");
-      res.json(cards);
+      res.json(await listPage(Card, readableCards(req.user), CARD_LIST_FIELDS, page));
     } catch {
       res.status(500).json({ message: "Không thể lấy danh sách thiệp." });
     }
