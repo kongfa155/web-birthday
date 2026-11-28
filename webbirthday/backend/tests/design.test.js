@@ -5,6 +5,7 @@ import { normalizeDomDesign } from "../../shared/designSchema.js";
 import cloudinary from "../config/cloudinary.js";
 import Card from "../models/Card.js";
 import Template from "../models/Template.js";
+import User from "../models/User.js";
 import CardController from "../controllers/CardController.js";
 import TemplateController from "../controllers/TemplateController.js";
 import CardShareController from "../controllers/CardShareController.js";
@@ -24,6 +25,12 @@ beforeEach(() => {
   uploadCalls = [];
   jsonWrites = [];
   mock.method(mongoose, "connect", () => { throw new Error("No database connections in tests"); });
+  mock.method(mongoose, "startSession", async () => ({
+    withTransaction: async (fn) => fn(),
+    endSession: async () => {},
+  }));
+  mock.method(User, "updateOne", async () => ({ matchedCount: 1 }));
+  mock.method(Card, "countDocuments", async () => 0);
   mock.method(cloudinary.uploader, "upload", async (value, options) => {
     uploadCalls.push({ value, options });
     return { secure_url: `https://cdn.example/image-${uploadCalls.length}.png` };
@@ -54,6 +61,8 @@ test("malformed, oversized, duplicate-ID and unsafe designs reject before cloud 
   for (const body of [
     { design: design() }, { design: design(), preview: "https://private.example" },
     { design: design(), preview, fabricEdit: { objects: [] } },
+    { fabricEdit: { objects: [] } },
+    { fabricEdit: "{}" },
     { designUrl: "https://private.example/design.json" }, { previewUrl: "https://private.example/p.png" },
     { preview },
   ]) assert.throws(() => validateDesignRequest(body));
@@ -74,18 +83,22 @@ test("embedded image assets upload once and native JSON and thumbnail use indepe
   assert.equal(jsonWrites[0].options.folder, "birthday_designs");
 });
 
-test("owner saves DOM fields and thumbnail without overwriting legacy data", async () => {
-  const legacy = { _id: id, owner: user._id, fabricEdit: "legacy.json" };
-  mock.method(Card, "findOne", async () => legacy);
+test("owner saves DOM fields and thumbnail while preserving card metadata and rejecting legacy fabricEdit", async () => {
+  const existing = { _id: id, owner: user._id, cardDESC: "Lời chúc cũ", isEditable: true };
+  mock.method(Card, "findOne", async () => existing);
   let stored;
-  mock.method(Card, "findOneAndUpdate", async (_filter, fields) => { stored = { ...legacy, ...fields }; return stored; });
+  mock.method(Card, "findOneAndUpdate", async (_filter, fields) => { stored = { ...existing, ...fields }; return stored; });
   const res = response();
   await CardController.update({ params: { id }, user, body: { cardName: "Thiệp mới", design: design(), preview } }, res);
   assert.equal(res.code, 200);
   assert.equal(stored.designFormat, "dom");
   assert.equal(stored.designUrl, "https://cdn.example/design.json");
-  assert.equal(stored.fabricEdit, "legacy.json");
+  assert.equal(stored.cardDESC, "Lời chúc cũ");
   assert.equal(stored.previewUrl, "https://cdn.example/image-1.png");
+
+  const rejected = response();
+  await CardController.update({ params: { id }, user, body: { fabricEdit: { objects: [] } } }, rejected);
+  assert.equal(rejected.code, 400);
 });
 
 test("unauthorized save and malformed payload never upload or update records", async () => {
@@ -146,8 +159,8 @@ test("style injection, unsupported elements, invalid numbers and bad version are
   assert.equal(parseDomDesign({ schemaVersion: 1, width: 1080, height: 1440, elements: [] }).elements.length, 0);
 });
 
-test("admin creates and updates DOM templates with validated payloads", async () => {
-  mock.method(Template.prototype, "save", async function () { return this; });
+test("admin creates and updates DOM templates with validated payloads; metadata updates keep design", async () => {
+  const saveMock = mock.method(Template.prototype, "save", async function () { return this; });
   mock.method(Template, "exists", async () => ({ _id: id }));
   mock.method(Template, "findByIdAndUpdate", async (_id, fields) => fields);
   const req = { params: { id }, user: { ...user, isAdmin: true }, body: { name: "Mẫu mới", design: design(), preview } };
@@ -157,6 +170,25 @@ test("admin creates and updates DOM templates with validated payloads", async ()
   const updated = response(); await TemplateController.update(req, updated);
   assert.equal(updated.code, 200);
   assert.equal(updated.body.template.designUrl, "https://cdn.example/design.json");
+
+  const uploadsBefore = uploadCalls.length + jsonWrites.length;
+  const metaUpdated = response();
+  await TemplateController.update({ params: { id }, user: { ...user, isAdmin: true }, body: { name: "Mẫu đổi tên" } }, metaUpdated);
+  assert.equal(metaUpdated.code, 200);
+  assert.deepEqual(metaUpdated.body.template, { name: "Mẫu đổi tên" });
+  assert.equal(uploadCalls.length + jsonWrites.length, uploadsBefore);
+
+  const missingDesign = response();
+  await TemplateController.create({ user: { ...user, isAdmin: true }, body: { name: "Thiếu design" } }, missingDesign);
+  assert.equal(missingDesign.code, 400);
+  assert.equal(saveMock.mock.callCount(), 1);
+  assert.equal(uploadCalls.length + jsonWrites.length, uploadsBefore);
+
+  const legacyTpl = response();
+  await TemplateController.create({ user: { ...user, isAdmin: true }, body: { name: "Legacy", fabricEdit: { objects: [] } } }, legacyTpl);
+  assert.equal(legacyTpl.code, 400);
+  assert.equal(saveMock.mock.callCount(), 1);
+  assert.equal(uploadCalls.length + jsonWrites.length, uploadsBefore);
 });
 
 test("public share includes DOM content but omits owner, share hash and assets", async () => {

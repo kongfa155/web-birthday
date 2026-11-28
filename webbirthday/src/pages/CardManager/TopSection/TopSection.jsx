@@ -14,14 +14,19 @@ const TopSection = () => {
   const [creating, setCreating] = useState(false);
   const { items: templates, loading, error, hasMore, loadMore, retry } = usePagedList(getTemplates, user?._id, openDrawer);
 
+  const getCreateErrorMessage = (err, fallbackMessage) => {
+    const message = err?.response?.data?.message;
+    return typeof message === "string" && message.trim() ? message : fallbackMessage;
+  };
+
   const handleChooseTemplate = async (template) => {
     if (creating) return;
     setCreating(true);
     try {
       const res = await createCard({ templateId: template._id, cardName: `${template.name} - Thiệp của tôi` });
       navigate(`/edit/cards/${res.data.card._id}`);
-    } catch {
-      toast.error("Không thể tạo thiệp từ mẫu. Vui lòng thử lại.");
+    } catch (err) {
+      toast.error(getCreateErrorMessage(err, "Không thể tạo thiệp từ mẫu. Vui lòng thử lại."));
     } finally {
       setCreating(false);
     }
@@ -33,8 +38,8 @@ const TopSection = () => {
     try {
       const { data } = await createCard({ cardName: "Thiệp sinh nhật của tôi", blank: true });
       navigate(`/edit/cards/${data.card._id}`);
-    } catch {
-      toast.error("Không thể tạo thiệp mới. Vui lòng thử lại.");
+    } catch (err) {
+      toast.error(getCreateErrorMessage(err, "Không thể tạo thiệp mới. Vui lòng thử lại."));
     } finally { setCreating(false); }
   };
 

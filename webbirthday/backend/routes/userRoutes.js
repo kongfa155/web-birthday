@@ -16,6 +16,7 @@ router.get("/me", UserController.me);
 router.use(requireAdmin);
 router.post("/", UserController.createUser);
 router.get("/", UserController.getAllUsers);
+router.get("/stats", UserController.getStats);
 router.get("/:id", validId, UserController.getUserById);
 router.put("/:id", validId, UserController.update);
 

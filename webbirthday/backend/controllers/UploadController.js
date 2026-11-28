@@ -11,11 +11,11 @@ const UploadController = {
         return res.status(400).json({ message: "Chỉ chấp nhận ảnh PNG, JPEG, WebP hoặc GIF dạng base64." });
       }
       if (Buffer.byteLength(base64.split(",")[1], "base64") > MAX_IMAGE_BYTES) {
-        return res.status(413).json({ message: "Ảnh không được vượt quá 5 MB." });
+        return res.status(413).json({ message: "Ảnh không được vượt quá 5 MiB." });
       }
 
       const url = await uploadImage(base64, {
-        folder: "fabric_images",
+        folder: "birthday_assets",
         resource_type: "image",
       });
 

@@ -1,7 +1,7 @@
 import { validateDomDesign } from "../utils/domDesign.js";
 
 /**
- * Shared helpers for loading and validating native DOM and legacy Fabric designs.
+ * Shared helpers for loading and validating native DOM designs.
  */
 
 export function isDomDesign(design) {
@@ -13,25 +13,11 @@ export function isDomDesign(design) {
   }
 }
 
-export function isLegacyFabricDesign(design) {
-  return Boolean(
-    design &&
-      typeof design === "object" &&
-      !Array.isArray(design) &&
-      Array.isArray(design.objects)
-  );
-}
-
 function validateDesignPayload(design) {
   if (isDomDesign(design)) {
     return validateDomDesign(design);
   }
-  if (isLegacyFabricDesign(design)) {
-    return design;
-  }
-  throw new Error(
-    "Dữ liệu thiết kế không đúng định dạng DOM hoặc Fabric hợp lệ."
-  );
+  throw new Error("Dữ liệu thiết kế không đúng định dạng DOM hợp lệ.");
 }
 
 function isFetchableUrl(value) {
@@ -98,7 +84,7 @@ export async function fetchDesignJson(source, signal) {
 }
 
 /**
- * Classifies a backend card/template record into 'dom', 'legacy-fabric', 'empty', or 'unsupported'.
+ * Classifies a backend card/template record into 'dom', 'empty', or 'unsupported'.
  * A record declaring designFormat: 'dom' with an existing designUrl/design will never fall back to empty on corruption.
  */
 export function classifyRecordDesign(record) {
@@ -108,14 +94,6 @@ export function classifyRecordDesign(record) {
 
   const rawSource = record.designUrl || record.design || null;
   const hasDomSource = Boolean(rawSource);
-  const hasLegacyFabric = Boolean(record.fabricEdit);
-
-  if (record.designFormat === "fabric") {
-    return {
-      kind: "legacy-fabric",
-      source: record.fabricEdit || null,
-    };
-  }
 
   if (record.designFormat === "dom") {
     if (!hasDomSource) {
@@ -134,6 +112,13 @@ export function classifyRecordDesign(record) {
     };
   }
 
+  if (record.fabricEdit) {
+    return {
+      kind: "unsupported",
+      source: record.fabricEdit,
+    };
+  }
+
   if (hasDomSource) {
     if (typeof rawSource === "object" && !isDomDesign(rawSource)) {
       return {
@@ -144,13 +129,6 @@ export function classifyRecordDesign(record) {
     return {
       kind: "dom",
       source: rawSource,
-    };
-  }
-
-  if (hasLegacyFabric) {
-    return {
-      kind: "legacy-fabric",
-      source: record.fabricEdit,
     };
   }
 

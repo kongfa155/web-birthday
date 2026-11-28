@@ -189,7 +189,9 @@ beforeEach(() => {
       _id: ids.card,
       cardName: "Alice birthday card",
       cardDESC: "Happy Birthday!",
-      fabricEdit: "https://cdn.example/alice-card.json",
+      designUrl: "https://cdn.example/alice-card.json",
+      designFormat: "dom",
+      previewUrl: "https://cdn.example/alice-preview.png",
       imgURL: ["https://cdn.example/alice-preview.png"],
       owner: ids.alice,
       isEditable: false,
@@ -213,7 +215,20 @@ beforeEach(() => {
   mock.method(mongoose, "connect", () => {
     throw new Error("Tests must not connect to a database");
   });
+  mock.method(mongoose, "startSession", async () => ({
+    withTransaction: async (fn) => fn(),
+    endSession: async () => {},
+  }));
   mock.method(User, "findById", (id) => userQuery(users.get(String(id)) || null));
+  mock.method(User, "updateOne", async (filter, update) => {
+    const user = users.get(String(filter._id));
+    if (!user || user.isAdmin === true || user.isActive === false) return { matchedCount: 0 };
+    if (update?.$inc?.__v) user.__v = (user.__v || 0) + update.$inc.__v;
+    return { matchedCount: 1 };
+  });
+  mock.method(Card, "countDocuments", async ({ owner }) =>
+    cards.filter((card) => String(card.owner) === String(owner)).length
+  );
   mock.method(Card, "find", (filter, projection) =>
     listQuery(cards, filter, projection)
   );
@@ -241,7 +256,9 @@ beforeEach(() => {
         ? {
             _id: ids.template,
             name: "Birthday Template",
-            fabricEdit: "https://cdn.example/template.json",
+            designUrl: "https://cdn.example/template.json",
+            designFormat: "dom",
+            previewUrl: "https://cdn.example/template.png",
             imgURL: ["https://cdn.example/template.png"],
           }
         : null
@@ -407,14 +424,22 @@ test("creating share stores SHA-256 hash not raw token and never leaks token or 
   assert.deepEqual(Object.keys(publicRes.body).sort(), [
     "cardDESC",
     "cardName",
-    "fabricEdit",
+    "designFormat",
+    "designUrl",
+    "previewUrl",
   ]);
   assert.equal(publicRes.body.cardName, "Updated birthday card");
   assert.equal(publicRes.body.cardDESC, "Updated wish");
   assert.equal(
-    publicRes.body.fabricEdit,
+    publicRes.body.designUrl,
     "https://cdn.example/alice-card.json"
   );
+  assert.equal(publicRes.body.designFormat, "dom");
+  assert.equal(
+    publicRes.body.previewUrl,
+    "https://cdn.example/alice-preview.png"
+  );
+  assert.ok(!("fabricEdit" in publicRes.body));
   assert.ok(!JSON.stringify(publicRes.body).includes(rawToken));
   assert.ok(!JSON.stringify(publicRes.body).includes(expectedHash));
 });

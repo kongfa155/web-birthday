@@ -7,7 +7,6 @@ const templateSchema = new mongoose.Schema(
     name: { type: String, required: true },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     imgURL: [{ type: String }],
-    fabricEdit: { type: String },
     designUrl: { type: String },
     designFormat: { type: String, enum: ["dom"] },
     previewUrl: { type: String },

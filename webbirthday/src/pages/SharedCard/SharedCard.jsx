@@ -5,7 +5,6 @@ import { classifyRecordDesign } from "../../services/designService.js";
 import styles from "./SharedCard.module.css";
 
 const DomDesignViewer = lazy(() => import("../../components/design/DomDesignViewer.jsx"));
-const LegacyFabricViewer = lazy(() => import("../../components/design/LegacyFabricViewer.jsx"));
 
 function upsertHeadMeta(name, content) {
   let meta = document.head.querySelector(`meta[name="${name}"]`);
@@ -77,10 +76,16 @@ export default function SharedCard() {
             <Suspense fallback={<p role="status">Đang tải bản xem trước...</p>}>
               {design.kind === "dom" ? (
                 <DomDesignViewer key={token} design={design.source} style={{ height: "100%", minHeight: "68vh" }} />
-              ) : design.kind === "legacy-fabric" ? (
-                <LegacyFabricViewer key={token} source={design.source} title={card.cardName} style={{ height: "100%", minHeight: "68vh" }} />
-              ) : design.kind === "unsupported" ? <p role="alert" className={styles.stateCard}>Định dạng thiết kế chưa được hỗ trợ.</p>
-                : <p className={styles.stateCard}>Thiệp chưa có nội dung thiết kế.</p>}
+              ) : design.kind === "unsupported" ? (
+                <div role="alert" className={styles.stateCard}>
+                  <h2 className={styles.stateTitle}>Định dạng thiết kế không được hỗ trợ</h2>
+                  <p className={styles.stateText}>
+                    Thiệp này sử dụng định dạng thiết kế không được trình xem hiện tại hỗ trợ.
+                  </p>
+                </div>
+              ) : (
+                <p className={styles.stateCard}>Thiệp chưa có nội dung thiết kế.</p>
+              )}
             </Suspense>
           </div>
         )}

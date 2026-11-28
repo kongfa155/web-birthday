@@ -7,7 +7,6 @@ const cardSchema = new mongoose.Schema(
     isEditable: { type: Boolean, default: true },
     imgURL: [{ type: String }],
     cardDESC: { type: String },
-    fabricEdit: { type: String }, // ✅ Đổi về String
     designUrl: { type: String },
     designFormat: { type: String, enum: ["dom"] },
     previewUrl: { type: String },

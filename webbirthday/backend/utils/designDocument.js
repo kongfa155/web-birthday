@@ -25,7 +25,9 @@ export function validateDesignRequest(body) {
   if (body.designUrl !== undefined || body.designFormat !== undefined || body.previewUrl !== undefined) {
     throw new DesignInputError("Hãy gửi nội dung thiết kế, không gửi URL lưu trữ trực tiếp.");
   }
-  if (body.design !== undefined && body.fabricEdit !== undefined) throw new DesignInputError("Chỉ gửi một định dạng thiết kế.");
+  if (body.fabricEdit !== undefined) {
+    throw new DesignInputError("Định dạng thiết kế Fabric không còn được hỗ trợ.");
+  }
   if (body.preview !== undefined && body.design === undefined) throw new DesignInputError("Ảnh xem trước cần đi kèm thiết kế.");
   if (body.design === undefined) return null;
   const design = parseDomDesign(body.design);

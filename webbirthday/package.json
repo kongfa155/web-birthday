@@ -16,7 +16,6 @@
     "bootstrap": "^5.3.8",
     "cloudinary": "^2.7.0",
     "express": "^5.1.0",
-    "fabric": "^7.4.0",
     "html-to-image": "^1.11.13",
     "mongoose": "^8.18.1",
     "multer": "^2.0.2",

@@ -1,54 +1,97 @@
 .adminTopSection {
-    height: 25%;
+    min-height: 150px;
+    flex-shrink: 0;
     background-color: #ecf0f1;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
     padding: 20px;
     box-sizing: border-box;
 }
 
 .adminTitle {
     font-size: 40px;
-    /* margin-left: 20px; */
     color: deepskyblue;
+    margin: 0 0 8px 0;
 }
 
-.pillBtn {
-    background-color: lightskyblue;
-    color: white;
-    border: none;
+.leftSection {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Nhóm thẻ thống kê */
+.statsGroup {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.statCard {
+    background-color: white;
+    border-radius: 16px;
+    padding: 12px 18px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    min-width: 170px;
+}
+
+.statLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.statValue {
+    font-size: 24px;
+    font-weight: 700;
+    color: deepskyblue;
+    line-height: 1.25;
+    margin: 2px 0;
+}
+
+.statErrorValue {
+    font-size: 16px;
+    font-weight: 600;
+    color: #dc2626;
+    line-height: 1.4;
+    margin: 2px 0;
+}
+
+.statSub {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.retryBtn {
+    background-color: white;
+    color: deepskyblue;
+    border: 1px solid deepskyblue;
     border-radius: 50px;
-    padding: 15px 60px;
-    font-size: 15px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    width: 150px;
-    height: 50px;
-    transition: background 0.3s ease, transform 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
-.pillBtn:hover {
+.retryBtn:hover {
     background-color: deepskyblue;
-    transform: scale(1.05);
+    color: white;
 }
 
-.pillBtn:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(135, 206, 250, 0.5);
-}
-/* Nhóm nút và search */
+/* Nhóm nút, sắp xếp và search */
 .topActions {
     display: flex;
     align-items: center;
-    gap: 15px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
-
-/* .leftSection{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: start;
-} */
 
 /* Search bar viên thuốc */
 .searchBar {
@@ -71,7 +114,33 @@
     outline: none;
     font-size: 14px;
     background: transparent;
-    width: 150px;
+    width: 180px;
+}
+
+.sortControl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: white;
+    border-radius: 50px;
+    padding: 8px 15px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    margin: 0;
+}
+
+.sortLabel {
+    font-size: 13px;
+    color: #555;
+    font-weight: 600;
+}
+
+.sortSelect {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
 }
 
 /* Button viên thuốc */
@@ -89,4 +158,9 @@
 .pillBtn:hover {
     background-color: deepskyblue;
     transform: scale(1.05);
+}
+
+.pillBtn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(135, 206, 250, 0.5);
 }

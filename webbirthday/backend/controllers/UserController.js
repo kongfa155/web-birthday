@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Card from "../models/Card.js";
 import { cardStats } from "../utils/cardStats.js";
 import bcrypt from "bcrypt";
 import { createSession, hashPassword, normalizeUsername, safeUser, SAFE_USER_FIELDS, validateCredentials } from "../utils/auth.js";
@@ -55,11 +56,22 @@ const UserController = {
     }
   },
   me: (req, res) => res.json({ user: safeUser(req.user) }),
+  getStats: async (req, res) => {
+    try {
+      const [userCount, cardCount] = await Promise.all([
+        User.countDocuments({ isAdmin: { $ne: true } }),
+        Card.countDocuments({}),
+      ]);
+      return res.json({ userCount, cardCount });
+    } catch {
+      return res.status(500).json({ message: "Không thể lấy thống kê hệ thống." });
+    }
+  },
   getAllUsers: async (req, res) => {
     try {
       const users = await User.find({}, SAFE_USER_FIELDS);
       const stats = await cardStats(users.map((user) => user._id));
-      return res.json(users.map((user) => ({ ...safeUser(user), ...(stats.get(String(user._id)) || { cardCount: 0, fileCount: 0 }) })));
+      return res.json(users.map((user) => ({ ...safeUser(user), ...(stats.get(String(user._id)) || { cardCount: 0 }) })));
     } catch {
       return res.status(500).json({ message: "Không thể lấy danh sách tài khoản." });
     }
@@ -69,7 +81,7 @@ const UserController = {
       const user = await User.findById(req.params.id).select(SAFE_USER_FIELDS);
       if (!user) return res.status(404).json({ message: "Không tìm thấy tài khoản." });
       const stats = await cardStats([user._id]);
-      return res.json({ ...safeUser(user), ...(stats.get(String(user._id)) || { cardCount: 0, fileCount: 0 }) });
+      return res.json({ ...safeUser(user), ...(stats.get(String(user._id)) || { cardCount: 0 }) });
     } catch {
       return res.status(500).json({ message: "Không thể lấy thông tin tài khoản." });
     }

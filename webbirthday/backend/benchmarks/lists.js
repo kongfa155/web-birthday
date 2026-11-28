@@ -21,9 +21,14 @@ const cards = Array.from({ length: 1000 }, (_, i) => ({
   imgURL: Array.from({ length: 20 }, (_, j) => `https://res.cloudinary.com/example/image/upload/v1/card-${i}/image-${j}.jpg`),
   cardDESC: "Description ".repeat(50), owner: { _id: owner, username: "alice" },
   createdAt: "2026-11-27T00:00:00.000Z", isEditable: true,
-  fabricEdit: `https://res.cloudinary.com/example/raw/upload/v1/card-${i}.json`,
+  designUrl: `https://res.cloudinary.com/example/raw/upload/v1/card-${i}.json`,
+  designFormat: "dom",
+  previewUrl: `https://res.cloudinary.com/example/image/upload/v1/card-${i}/preview.png`,
 }));
-const templates = cards.map((card) => ({ _id: card._id, name: card.cardName, owner: card.owner, createdAt: card.createdAt, imgURL: card.imgURL, fabricEdit: card.fabricEdit }));
+const templates = cards.map((card) => ({
+  _id: card._id, name: card.cardName, owner: card.owner, createdAt: card.createdAt, imgURL: card.imgURL,
+  designUrl: card.designUrl, designFormat: card.designFormat, previewUrl: card.previewUrl,
+}));
 mock.method(mongoose, "connect", () => { throw new Error("Benchmark must not connect to a database"); });
 mock.method(User, "findById", () => ({ select: async () => ({ _id: owner, username: "alice", isAdmin: false, isActive: true }) }));
 const owned = cards.map((card) => ({ ...card, owner }));

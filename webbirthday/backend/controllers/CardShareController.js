@@ -91,7 +91,7 @@ const CardShareController = {
       const card = await Card.findOne({
         shareEnabled: true,
         shareTokenHash,
-      }).select("cardName cardDESC fabricEdit designUrl designFormat previewUrl");
+      }).select("cardName cardDESC designUrl designFormat previewUrl");
 
       if (!card || card.shareEnabled === false) {
         return res.status(404).json({ message: SHARED_CARD_NOT_FOUND_MESSAGE });
@@ -99,7 +99,6 @@ const CardShareController = {
 
       const dto = { cardName: card.cardName };
       if (card.cardDESC !== undefined) dto.cardDESC = card.cardDESC;
-      if (card.fabricEdit !== undefined) dto.fabricEdit = card.fabricEdit;
       if (card.designUrl !== undefined) dto.designUrl = card.designUrl;
       if (card.designFormat !== undefined) dto.designFormat = card.designFormat;
       if (card.previewUrl !== undefined) dto.previewUrl = card.previewUrl;

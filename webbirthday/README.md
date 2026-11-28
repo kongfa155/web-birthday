@@ -1,47 +1,36 @@
 # Web tạo thiệp chúc mừng sinh nhật
 
-Dự án nhóm của: Tuấn Duy, Công Pha, Huanz
+Dự án nhóm của: Nguyễn Ngọc Phương Huỳnh – B2303872 (Developer/tester), Nguyễn Hà Huân – B2303869 (Developer/tester), Đào Công Pha – B2306678 (BA/người duyệt).
 
-## Cập nhật DP-01: refactor mã nguồn
+## Tính năng hiện hành
 
-Đã gỡ 19 file cũ/ghi chú không còn sử dụng, tách upload thành route/controller/service,
-và tách editor thành hook lịch sử, phím tắt, lưu/xuất PNG, viewport cùng các component
-thanh công cụ, hộp xác nhận và điều khiển Moveable. Giữ nguyên chức năng, giao diện,
-API và hỗ trợ xem thiệp Fabric cũ. Không thay đổi database hoặc dependency.
-Xem [cấu trúc, kiểm tra từng bước và cách quay lui DP-01](docs/DP-01.md).
+### Xác thực và phiên đăng nhập
 
-## Editor tạo thiệp
+- Hỗ trợ đăng ký (`/register`), đăng nhập (`/login`) bằng tên đăng nhập/mật khẩu và đăng nhập Google (Google Identity Services).
+- Tên đăng nhập phân biệt hoa/thường (1–64 ký tự); mật khẩu đăng ký tối thiểu 6 ký tự và tối đa 72 byte UTF-8.
+- Phiên JWT có thời hạn **1 ngày** (`1d`), bao gồm phiên sau khi đăng nhập Google. Luồng Google dùng nonce một lần có thời hạn **5 phút** (`300` giây) kèm cookie và kiểm tra Origin.
+- Mỗi request cần quyền đều xác thực chữ ký JWT và kiểm tra trạng thái hoạt động, vai trò trực tiếp từ database qua `/api/users/me` và middleware xác thực.
 
-Editor mới dùng React/React DOM 19.3.1, HTML/CSS và Moveable; không cần API key
-hay giấy phép SDK. Có mẫu sinh nhật dựng sẵn, kéo thả, chỉnh chữ/ảnh, lớp,
-undo/redo, thumbnail và xuất PNG. Thiệp Fabric cũ vẫn xem được.
-Xem [cấu hình, dữ liệu, kiểm thử và rollback](docs/EDITOR.md).
+### Editor và định dạng thiết kế DOM
 
-## Cập nhật TU-02: đăng nhập Google
+- Editor dùng React/React DOM 19.3.1, HTML/CSS, `react-moveable` (MIT) và `html-to-image` (MIT); không cần API key hay giấy phép SDK.
+- **Bỏ hoàn toàn hỗ trợ Fabric và dependency Fabric**: toàn bộ hệ thống chỉ sử dụng định dạng thiết kế DOM `schemaVersion: 1` (`designFormat: "dom"`).
+- Người dùng tạo thiệp mới từ mẫu có sẵn hoặc tạo thiệp trắng (`blank: true`); có thư viện mẫu dựng sẵn, kéo/đổi cỡ/xoay phần tử chữ, ảnh, hình khối, quản lý lớp, undo/redo, thumbnail và xuất PNG.
+- Ảnh tải lên qua `/api/upload-base64` hỗ trợ tối đa **5 MiB** mỗi ảnh (request body tối đa 10 MB).
+- Chi tiết cấu hình, schema và API xem tại [docs/EDITOR.md](docs/EDITOR.md).
 
-Trang đăng nhập và đăng ký có nút Google, dùng Google Identity Services và Client ID
-cấu hình trong env. Lần đầu tạo tài khoản USER riêng không có mật khẩu nội bộ;
-những lần sau nhận diện bằng Google `sub`. Không gộp email vào tài khoản cũ.
+### Phân quyền, hạn mức tạo thiệp và chia sẻ
 
-Xem [cấu hình, API, thay đổi dữ liệu và kiểm thử TU-02](docs/TU-02.md).
-Backend yêu cầu Node.js 22 trở lên. Giữ nguyên các cấu hình TU-01 hiện có.
+- Mỗi tài khoản chỉ đọc, sửa và xóa thiệp thuộc quyền sở hữu của mình (`owner`).
+- **Giới hạn số thiệp**: chỉ tài khoản **User** bị giới hạn tối đa **20 thiệp** (`MAX_USER_CARDS = 20`); tài khoản **Admin** được miễn giới hạn này.
+- Khi User tạo thiệp, backend chạy trong **MongoDB transaction** (`createCardWithinQuota`): tăng trường `users.__v` sẵn có với `{ timestamps: false }` làm khóa tuần tự hóa theo tài khoản, sau đó đếm số thiệp và tạo bản ghi mới ngay trong transaction; không thêm index hay trường mới vào schema. Lời gọi upload/save thiết kế lên Cloudinary được cache ngoài callback retry (`preparedDesignPromise`) để tránh tạo trùng file khi transaction thử lại do xung đột ghi.
+- Chia sẻ thiệp công khai qua `/share/:token` với token ngẫu nhiên (lưu hash SHA-256), cho phép bật/xoay vòng/tắt liên kết từ chủ sở hữu.
 
-## Cập nhật TU-01: đăng ký tài khoản
+### Quản trị hệ thống (Admin)
 
-Người dùng có thể mở `/register`, đăng ký và tự đăng nhập vào `/cards`.
-Tên đăng nhập phân biệt hoa/thường; mật khẩu đăng ký tối thiểu 6 ký tự.
-Backend đã kiểm tra JWT, trạng thái tài khoản và quyền truy cập dữ liệu.
-Admin chỉ xem thông tin tài khoản và số lượng thiệp của người dùng.
-
-Xem [phạm vi, API, kiểm thử và điều kiện phát hành TU-01](docs/TU-01.md).
-User tự tạo/gửi thiệp là hạng mục tiếp theo, chưa nằm trong TU-01.
-
-Kiểm thử backend không kết nối database thật:
-
-```bash
-cd webbirthday/backend
-npm test
-```
+- Trang quản lý người dùng thống kê **tổng số User** (không tính Admin) và **tổng số thiệp** toàn hệ thống (`GET /api/users/stats`).
+- Bảng tài khoản hiển thị `cardCount` của từng tài khoản, hỗ trợ **tìm kiếm theo username** và **sắp xếp theo số thiệp tăng/giảm** (mặc định, tăng dần, giảm dần).
+- Đã bỏ tính năng thống kê `fileCount`.
 
 ## Cấu trúc dự án
 
@@ -61,12 +50,13 @@ webbirthday/
 │   ├── components/
 │   │   ├── auth/
 │   │   ├── common/          # Giao diện dùng chung
-│   │   └── design/          # Bộ xem thiệp DOM và LegacyFabricViewer
+│   │   └── design/          # Bộ xem và dựng thiệp DOM
 │   ├── context/             # Trạng thái xác thực
 │   ├── services/            # Gọi API
 │   ├── utils/
 │   ├── assets/
 │   └── main.jsx             # Điểm khởi động React
+├── shared/                  # Schema DOM dùng chung frontend/backend
 ├── public/
 └── backend/
     ├── config/
@@ -79,16 +69,13 @@ webbirthday/
     └── server.js
 ```
 
-Component chỉ phục vụ một trang đặt trong thư mục trang đó, cùng CSS của nó.
-Chỉ đưa component vào `components/common` khi thực sự dùng chung.
-`app/routes.jsx` khai báo URL và cây route; `layouts/MainLayout.jsx` quản lý
-khung giao diện. Backend tiếp tục giữ cách phân lớp hiện tại.
+Component chỉ phục vụ một trang đặt trong thư mục trang đó cùng CSS của nó; chỉ đưa vào `components/common` khi thực sự dùng chung.
 
 ## Chạy dự án
 
-Từ thư mục gốc repository, mở hai terminal.
+Yêu cầu Node.js 22 trở lên. Từ thư mục gốc repository, mở hai terminal:
 
-Frontend:
+Frontend (`http://localhost:5173`):
 
 ```bash
 cd webbirthday
@@ -96,7 +83,7 @@ npm install
 npm run dev
 ```
 
-Backend:
+Backend (`http://localhost:5000`):
 
 ```bash
 cd webbirthday/backend
@@ -104,25 +91,27 @@ npm install
 npm run dev
 ```
 
-Backend đọc cấu hình từ `webbirthday/backend/.env`. Giữ cấu hình hiện có;
-các biến gồm `MONGO_URI`, `JWT_SECRET`, `CLOUD_NAME`,
-`CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` và `PORT` (mặc định 5000).
-Không đưa giá trị bí mật vào tài liệu hoặc Git.
-Frontend dùng Vite; mặc định truy cập `http://localhost:5173`.
+Backend đọc cấu hình từ `webbirthday/backend/.env` (gồm `MONGO_URI`, `JWT_SECRET`, `CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `GOOGLE_CLIENT_ID` và `PORT`). Không đưa giá trị bí mật vào tài liệu hoặc Git.
 
-## Kiểm tra và phạm vi chuẩn hóa
+## Kiểm thử và trạng thái kiểm chứng
 
-Chạy từ `webbirthday/`:
+Cần phân biệt rõ giữa **kiểm thử cô lập / mock** và **kiểm thử tích hợp thật**:
 
-```bash
-npm run build
-npm run lint
-```
+1. **Kiểm thử cô lập / hồi quy và benchmark giả lập (không kết nối DB/Cloudinary thật)**:
+   - Backend (`cd webbirthday/backend && npm test`): **87/87** bài đạt (dùng mock Mongoose/Cloudinary).
+   - Playwright E2E (`cd webbirthday && npm run test:editor`): **17/17** bài đạt (mock API và tài nguyên trình duyệt).
+   - Frontend lint & build (`cd webbirthday && npm run lint && npm run build`): đạt.
+   - Các báo cáo lịch sử/benchmark cũ trong `docs/` (như `TU-01`–`TU-05`, `TU-04-benchmark.json`, `TU-01-TU-05-db-audit.json`) được giữ nguyên bản làm tư liệu đối chiếu.
 
-Đợt chuẩn hóa chỉ thay vị trí file, tên trang quản lý người dùng và tách
-App/routes/layout. Giữ nguyên URL, cây phân quyền, luồng chức năng, API,
-giao diện, cấu trúc database và các dependency. Không chạy migration.
-Trước đó, ở đợt chuẩn hóa cấu trúc ban đầu, các file ghi chú và helper cũ được giữ lại để rà soát riêng; đến checkpoint DP-01 B1 các file không còn sử dụng đã được gỡ bỏ và tài liệu hóa tại [docs/DP-01.md](docs/DP-01.md).
-Trước khi chuẩn hóa, build thành công nhưng lint đã có 40 lỗi. Sau khi bỏ
-hai biến không dùng trong App, lint còn 38 lỗi có sẵn và không phát sinh lỗi mới.
-Các lỗi nghiệp vụ, routing và editor có sẵn cần xử lý trong đợt bảo trì riêng.
+2. **Kiểm thử tích hợp thật (Real integration)**:
+   - Đã thực hiện kiểm thử end-to-end trên `localhost:5000` (backend) và `localhost:5173` (frontend) kết nối MongoDB `Webbirthday` và Cloudinary thật cấu hình từ `.env`.
+   - Phạm vi dữ liệu kiểm thử được duyệt: 3 tài khoản QA, 23 thiệp, 1 mẫu và các tài nguyên mới phát sinh trong lượt kiểm thử.
+
+3. **CI / GitHub Actions**:
+   - Baseline nhánh `dev` tại commit `399c946` (ngày 27/11/2026) ghi nhận workflow frontend lint/build và backend tests đạt. Kết quả đó là của mốc baseline `399c946`, chưa phải CI chạy trên các thay đổi local hiện tại.
+
+## Tài liệu liên quan
+
+- [docs/EDITOR.md](docs/EDITOR.md): Chi tiết kiến trúc editor DOM, dữ liệu, API upload/lưu và kiểm thử.
+- [docs/DP-01.md](docs/DP-01.md): Refactor DP-01, phạm vi no-DB ban đầu và phần dọn dẹp Fabric bổ sung sau DP-01.
+- [docs/TU-01.md](docs/TU-01.md), [docs/TU-02.md](docs/TU-02.md), [docs/TU-03.md](docs/TU-03.md), [docs/TU-04.md](docs/TU-04.md), [docs/TU-05.md](docs/TU-05.md): Tài liệu lịch sử theo từng đợt triển khai.

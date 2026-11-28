@@ -7,9 +7,7 @@ import mongoose from "mongoose";
 import cloudinary from "../config/cloudinary.js";
 import User from "../models/User.js";
 import { createApp } from "../app.js";
-import { uploadRawJson } from "../services/cloudinaryService.js";
-import { processFabricEditImages } from "../utils/processFabricEdit.js";
-import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
+import { uploadImage, uploadRawJson } from "../services/cloudinaryService.js";
 
 mongoose.set("bufferCommands", false);
 
@@ -102,7 +100,7 @@ test("valid PNG/JPEG/JPG/WebP/GIF base64 payloads upload with expected options a
     assert.deepEqual(res.body, { url: `https://cdn.example/img-${index + 1}.png` });
     assert.equal(calls[index].source, payload);
     assert.deepEqual(calls[index].options, {
-      folder: "fabric_images",
+      folder: "birthday_assets",
       resource_type: "image",
     });
   }
@@ -134,7 +132,7 @@ test("invalid input and >5MiB payloads reject with 400/413 before contacting Clo
     body: { base64: oversized },
   });
   assert.equal(largeRes.status, 413);
-  assert.equal(largeRes.body.message, "Ảnh không được vượt quá 5 MB.");
+  assert.equal(largeRes.body.message, "Ảnh không được vượt quá 5 MiB.");
   assert.equal(uploadMock.mock.callCount(), 0);
 });
 
@@ -160,7 +158,7 @@ test("removed /api/upload-image and /api/upload-json routes remain 404", async (
   }
 });
 
-test("cloudinaryService.uploadRawJson and utils preserve options, unique IDs, and stream error handling", async () => {
+test("cloudinaryService.uploadRawJson and uploadImage preserve options, unique IDs, and stream error handling", async () => {
   const streamCalls = [];
   mock.method(cloudinary.uploader, "upload_stream", (options, callback) => ({
     end(buffer) {
@@ -173,15 +171,12 @@ test("cloudinaryService.uploadRawJson and utils preserve options, unique IDs, an
   const vnBuffer = Buffer.from('{"note":"Quà tặng đặc biệt"}', "utf-8");
   const url1 = await uploadRawJson(vnJson, "birthday_designs");
   const url2 = await uploadRawJson(vnBuffer, "birthday_designs");
-  const url3 = await uploadFabricJSON('{"b":2}', "legacy-name");
 
   assert.equal(url1, "https://cdn.example/raw-1.json");
   assert.equal(url2, "https://cdn.example/raw-2.json");
-  assert.equal(url3, "https://cdn.example/raw-3.json");
   assert.deepEqual(streamCalls[0].buffer, Buffer.from(vnJson, "utf-8"));
   assert.equal(streamCalls[0].buffer.toString("utf-8"), vnJson);
   assert.deepEqual(streamCalls[1].buffer, vnBuffer);
-  assert.deepEqual(streamCalls[2].buffer, Buffer.from('{"b":2}', "utf-8"));
   assert.equal(streamCalls[0].options.resource_type, "raw");
   assert.equal(streamCalls[0].options.folder, "birthday_designs");
   assert.equal(streamCalls[0].options.overwrite, false);
@@ -189,11 +184,7 @@ test("cloudinaryService.uploadRawJson and utils preserve options, unique IDs, an
   assert.equal(streamCalls[1].options.folder, "birthday_designs");
   assert.equal(streamCalls[1].options.overwrite, false);
   assert.match(streamCalls[1].options.public_id, UUID_RE);
-  assert.equal(streamCalls[2].options.folder, "fabric_json");
-  assert.equal(streamCalls[2].options.overwrite, false);
-  assert.match(streamCalls[2].options.public_id, UUID_RE);
   assert.notEqual(streamCalls[0].options.public_id, streamCalls[1].options.public_id);
-  assert.notEqual(streamCalls[1].options.public_id, streamCalls[2].options.public_id);
 
   mock.method(console, "error", () => {});
   mock.method(cloudinary.uploader, "upload_stream", (_options, callback) => ({
@@ -201,18 +192,16 @@ test("cloudinaryService.uploadRawJson and utils preserve options, unique IDs, an
       callback(new Error("Stream failed"));
     },
   }));
-  await assert.rejects(() => uploadRawJson("{}", "fabric_json"), /Stream failed/);
+  await assert.rejects(() => uploadRawJson("{}", "birthday_designs"), /Stream failed/);
 
-  const fabricCalls = [];
+  const imageCalls = [];
   mock.method(cloudinary.uploader, "upload", async (source, options) => {
-    fabricCalls.push({ source, options });
-    return { secure_url: "https://cdn.example/fabric-img.png" };
+    imageCalls.push({ source, options });
+    return { secure_url: "https://cdn.example/dom-img.png" };
   });
-  const processed = await processFabricEditImages({
-    objects: [{ type: "image", src: "data:image/png;base64,aGVsbG8=" }],
-  });
-  assert.deepEqual(processed.imgURLs, ["https://cdn.example/fabric-img.png"]);
-  assert.deepEqual(fabricCalls[0].options, { folder: "fabric_images" });
+  const imgUrl = await uploadImage("data:image/png;base64,aGVsbG8=", { folder: "birthday_assets" });
+  assert.equal(imgUrl, "https://cdn.example/dom-img.png");
+  assert.deepEqual(imageCalls[0].options, { folder: "birthday_assets" });
 });
 
 test("upload-base64 enforces 30/min rate limit after authentication", async () => {

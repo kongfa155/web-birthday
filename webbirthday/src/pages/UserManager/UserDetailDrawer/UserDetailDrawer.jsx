@@ -37,9 +37,6 @@ const UserDetailDrawer = ({ user, onClose }) => {
             <strong>Số thiệp:</strong> {user.cardCount ?? 0}
           </p>
           <p>
-            <strong>Số file được tham chiếu trong thiệp:</strong> {user.fileCount ?? 0}
-          </p>
-          <p>
             <strong>Ngày tạo:</strong>{" "}
             {user.createdAt ? new Date(user.createdAt).toLocaleString("vi-VN") : "N/A"}
           </p>

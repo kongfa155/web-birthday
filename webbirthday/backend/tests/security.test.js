@@ -12,8 +12,16 @@ import UserController from "../controllers/UserController.js";
 import { createApp } from "../app.js";
 import { createRateLimiter } from "../middlewares/rateLimit.js";
 import { hasUniqueUsernameIndex } from "../utils/registrationIndex.js";
-import { processFabricEditImages } from "../utils/processFabricEdit.js";
 import { listQuery } from "./helpers/listQuery.js";
+
+const validDomDesign = () => ({
+  schemaVersion: 1,
+  width: 1080,
+  height: 1440,
+  background: "#ffffff",
+  elements: [{ id: "el-1", type: "text", text: "Chúc mừng sinh nhật!", x: 100, y: 100, width: 600, height: 120, fontSize: 48 }],
+});
+const validPreview = "data:image/png;base64,aGVsbG8=";
 
 mongoose.set("bufferCommands", false);
 const oldSecret = process.env.JWT_SECRET;
@@ -59,18 +67,25 @@ beforeEach(async () => {
   const password = await bcrypt.hash("old123", 4);
   users = new Map(Object.entries(ids).filter(([key]) => ["admin", "alice", "bob"].includes(key)).map(([name, _id]) => [_id, { _id, username: name, password, isAdmin: name === "admin", isActive: true, createdAt: new Date("2026-01-01"), cards: ["SHOULD_NOT_LEAK"] }]));
   cards = [
-    { _id: ids.card, cardName: "Alice private design", owner: ids.alice, isEditable: false, fabricEdit: "https://private.example/alice.json", imgURL: ["alice-preview"] },
+    { _id: ids.card, cardName: "Alice private design", owner: ids.alice, isEditable: false, designUrl: "https://private.example/alice.json", designFormat: "dom", previewUrl: "https://private.example/alice-preview.png", imgURL: ["alice-preview"] },
     { _id: ids.draft, cardName: "Alice draft", owner: ids.alice, isEditable: true },
     { _id: ids.unassigned, cardName: "Legacy admin design", owner: null, isEditable: true },
   ];
   saves = 0;
   indexes = [{ name: "username_1", key: { username: 1 }, unique: true }];
   mock.method(mongoose, "connect", () => { throw new Error("Tests must not connect to a database"); });
+  mock.method(mongoose, "startSession", async () => ({ withTransaction: async (fn) => fn(), endSession: async () => {} }));
   mock.method(User.collection, "listIndexes", () => ({ toArray: async () => indexes }));
   mock.method(User, "findOne", ({ username }) => query([...users.values()].find((user) => user.username === username) || null));
   mock.method(User, "findById", (id) => query(users.get(String(id)) || null));
   mock.method(User, "find", async () => [...users.values()]);
   mock.method(User, "findByIdAndUpdate", (id, update) => { const user = users.get(id); if (user) Object.assign(user, update); return query(user || null); });
+  mock.method(User, "updateOne", async (filter, update) => {
+    const user = users.get(String(filter._id));
+    if (!user || user.isAdmin === true || user.isActive === false) return { matchedCount: 0 };
+    if (update?.$inc?.__v) user.__v = (user.__v || 0) + update.$inc.__v;
+    return { matchedCount: 1 };
+  });
   mock.method(User.prototype, "save", async function () {
     if ([...users.values()].some((user) => user.username === this.username)) throw Object.assign(new Error("duplicate"), { code: 11000 });
     saves += 1; users.set(String(this._id), this); return this;
@@ -80,10 +95,10 @@ beforeEach(async () => {
   mock.method(Card, "findOneAndUpdate", async (filter, update) => { const card = cards.find((item) => matches(item, filter)); if (card) Object.assign(card, update); return card || null; });
   mock.method(Card, "findOneAndDelete", async (filter) => { const index = cards.findIndex((item) => matches(item, filter)); return index < 0 ? null : cards.splice(index, 1)[0]; });
   mock.method(Card.prototype, "save", async function () { cards.push(this.toObject()); return this; });
-  mock.method(Card, "aggregate", async () => [...users.keys()].map((_id) => ({ _id, count: cards.filter((card) => String(card.owner) === _id).length, files: cards.filter((card) => String(card.owner) === _id).map((card) => ({ images: card.imgURL, design: card.fabricEdit })) })));
+  mock.method(Card, "aggregate", async () => [...users.keys()].map((_id) => ({ _id, count: cards.filter((card) => String(card.owner) === _id).length })));
   mock.method(Card, "countDocuments", async ({ owner }) => cards.filter((card) => String(card.owner) === String(owner)).length);
   mock.method(Template, "find", (filter, projection) => listQuery([{ _id: ids.template, name: "Public template" }], filter, projection));
-  mock.method(Template, "findById", (id) => query(String(id) === ids.template ? { _id: ids.template, name: "Public template", fabricEdit: "https://template.example/design.json", imgURL: ["template-preview"] } : null));
+  mock.method(Template, "findById", (id) => query(String(id) === ids.template ? { _id: ids.template, name: "Public template", designUrl: "https://template.example/design.json", designFormat: "dom", previewUrl: "https://template.example/preview.png", imgURL: ["template-preview"] } : null));
   mock.method(cloudinary.uploader, "upload", async () => { throw new Error("Unexpected cloud write"); });
   mock.method(cloudinary.uploader, "upload_stream", () => { throw new Error("Unexpected cloud write"); });
 });
@@ -152,7 +167,7 @@ test("user listing and detail include owned drafts and completed cards only", as
 });
 
 test("card pages are bounded, newest ID first, private and omit design payloads", async () => {
-  cards = Array.from({ length: 61 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), owner: i % 2 ? ids.bob : ids.alice, cardName: `Card ${i}`, imgURL: ["preview", "extra-image"], fabricEdit: "PRIVATE_DESIGN", cardDESC: "HEAVY_DESCRIPTION" }));
+  cards = Array.from({ length: 61 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), owner: i % 2 ? ids.bob : ids.alice, cardName: `Card ${i}`, imgURL: ["preview", "extra-image"], designUrl: "PRIVATE_DESIGN", designFormat: "dom", previewUrl: "https://private.example/p.png", cardDESC: "HEAVY_DESCRIPTION" }));
   const auth = token(ids.alice);
   const first = await request("/api/cards", { auth });
   assert.equal(first.body.items.length, 24);
@@ -179,7 +194,7 @@ test("pagination validates untrusted query values for both lists", async () => {
 });
 
 test("template list uses the same pagination and small projection; detail still supplies design", async () => {
-  const templates = Array.from({ length: 5 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), name: `Template ${i}`, imgURL: ["preview", "extra"], fabricEdit: "large-json" }));
+  const templates = Array.from({ length: 5 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, "0"), name: `Template ${i}`, imgURL: ["preview", "extra"], designUrl: "large-json", designFormat: "dom", previewUrl: "https://template.example/p.png" }));
   mock.method(Template, "find", (filter, projection) => listQuery(templates, filter, projection));
   const auth = token(ids.alice);
   let before;
@@ -187,30 +202,31 @@ test("template list uses the same pagination and small projection; detail still 
   do {
     const result = await request(`/api/templates?limit=2${before ? `&before=${before}` : ""}`, { auth });
     assert.equal(result.status, 200);
-    for (const item of result.body.items) { assert.ok(!("fabricEdit" in item)); assert.equal(item.imgURL.length, 1); seen.push(item._id); }
+    for (const item of result.body.items) { assert.ok(!("designUrl" in item)); assert.equal(item.imgURL.length, 1); seen.push(item._id); }
     before = result.body.nextCursor;
   } while (before);
   assert.equal(new Set(seen).size, 5);
   const detail = await request(`/api/templates/${ids.template}`, { auth });
-  assert.equal(detail.body.fabricEdit, "https://template.example/design.json");
+  assert.equal(detail.body.designUrl, "https://template.example/design.json");
 });
 test("admins cannot read or edit other users' cards or unassigned legacy cards", async () => {
   const auth = token(ids.admin);
   assert.deepEqual((await request("/api/cards", { auth })).body, { items: [], nextCursor: null });
   assert.equal((await request(`/api/cards/${ids.card}`, { auth })).status, 404);
-  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { cardName: "stolen", fabricEdit: "{}" } })).status, 404);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth, method: "PUT", body: { cardName: "stolen", design: validDomDesign(), preview: validPreview } })).status, 404);
   assert.equal((await request(`/api/cards/${ids.unassigned}`, { auth, method: "PUT", body: { isEditable: false } })).status, 404);
 });
 test("admin account endpoints return counts and metadata only, never card content or hashes", async () => {
   const auth = token(ids.admin);
   const listing = await request("/api/users", { auth });
   assert.equal(listing.status, 200); assert.equal(listing.body.find((user) => user._id === ids.alice).cardCount, 2);
+  assert.equal(listing.body.find((user) => user._id === ids.bob).cardCount, 0);
   const detail = await request(`/api/users/${ids.alice}`, { auth }); assert.equal(detail.body.cardCount, 2);
-  assert.equal(detail.body.fileCount, 2);
-  assert.equal(listing.body.find((user) => user._id === ids.bob).fileCount, 0);
+  assert.ok(!("fileCount" in detail.body));
+  for (const item of listing.body) assert.ok(!("fileCount" in item));
   for (const result of [listing, detail]) {
     const text = JSON.stringify(result.body);
-    for (const privateText of ["SHOULD_NOT_LEAK", "fabricEdit", "alice-preview", "Alice private design", users.get(ids.alice).password]) assert.ok(!text.includes(privateText));
+    for (const privateText of ["SHOULD_NOT_LEAK", "designUrl", "https://private.example/alice.json", "alice-preview", "Alice private design", users.get(ids.alice).password]) assert.ok(!text.includes(privateText));
   }
 });
 test("account updates cannot change password, role, username or cards; nonadmins cannot toggle status", async () => {
@@ -231,7 +247,9 @@ test("user creates an owned card from a server-resolved template without mutatin
   const created = await request("/api/cards", { auth, method: "POST", body: { templateId: ids.template, cardName: "My card", isEditable: false } });
   assert.equal(created.status, 201);
   assert.equal(created.body.card.owner, ids.alice);
-  assert.equal(created.body.card.fabricEdit, "https://template.example/design.json");
+  assert.equal(created.body.card.designUrl, "https://template.example/design.json");
+  assert.equal(created.body.card.designFormat, "dom");
+  assert.equal(created.body.card.previewUrl, "https://template.example/preview.png");
   assert.equal(created.body.card.isEditable, true);
   const id = created.body.card._id;
   assert.equal((await request(`/api/cards/${id}`, { auth })).status, 200);
@@ -248,6 +266,7 @@ test("creation validates template and rejects ownership spoofing before uploads"
     [{ cardName: "x", templateId: ids.bob }, 404],
     [{ cardName: "x", templateId: ids.template, owner: ids.bob }, 403],
     [{ cardName: "x", templateId: ids.template, fabricEdit: "{" }, 400],
+    [{ cardName: "x", templateId: ids.template, fabricEdit: { objects: [] } }, 400],
   ]) assert.equal((await request("/api/cards", { auth, method: "POST", body })).status, status);
 });
 
@@ -266,28 +285,37 @@ test("owner may edit completed cards; other users and admin cannot modify, trans
 });
 
 test("saving a design uses a new JSON resource without changing the template", async () => {
+  mock.method(cloudinary.uploader, "upload", async () => ({ secure_url: "https://new.example/preview.png" }));
   mock.method(cloudinary.uploader, "upload_stream", (options, callback) => {
     assert.equal(options.overwrite, false);
-    return { end(buffer) { assert.deepEqual(JSON.parse(buffer.toString()).objects, []); callback(null, { secure_url: "https://new.example/design.json" }); } };
+    return { end(buffer) { assert.equal(JSON.parse(buffer.toString()).schemaVersion, 1); callback(null, { secure_url: "https://new.example/design.json" }); } };
   });
-  const result = await request(`/api/cards/${ids.card}`, { auth: token(ids.alice), method: "PUT", body: { fabricEdit: { objects: [] } } });
+  const result = await request(`/api/cards/${ids.card}`, { auth: token(ids.alice), method: "PUT", body: { design: validDomDesign(), preview: validPreview } });
   assert.equal(result.status, 200);
-  assert.equal(result.body.card.fabricEdit, "https://new.example/design.json");
+  assert.equal(result.body.card.designUrl, "https://new.example/design.json");
+  assert.equal(result.body.card.designFormat, "dom");
+  assert.equal(result.body.card.previewUrl, "https://new.example/preview.png");
   assert.deepEqual(result.body.card.imgURL, []);
 });
 
-test("file statistics deduplicate shared image and JSON references within each owner", async () => {
-  cards.push({ _id: ids.template, owner: ids.alice, fabricEdit: cards[0].fabricEdit, imgURL: ["alice-preview", "alice-preview", "new-image"] });
+test("admin user detail counts cards without exposing file references or fileCount", async () => {
+  cards.push({ _id: ids.template, owner: ids.alice, designUrl: cards[0].designUrl, designFormat: "dom", imgURL: ["alice-preview", "alice-preview", "new-image"] });
   const detail = await request(`/api/users/${ids.alice}`, { auth: token(ids.admin) });
   assert.equal(detail.body.cardCount, 3);
-  assert.equal(detail.body.fileCount, 3);
+  assert.ok(!("fileCount" in detail.body));
   assert.ok(!JSON.stringify(detail.body).includes("new-image"));
 });
 
-test("Fabric 7 images in groups and backgrounds are included; failed uploads abort save", async () => {
-  const result = await processFabricEditImages({ objects: [{ type: "Group", objects: [{ type: "Image", src: "nested-image" }] }], backgroundImage: { type: "image", src: "background-image" } });
-  assert.deepEqual(result.imgURLs, ["nested-image", "background-image"]);
-  await assert.rejects(() => processFabricEditImages({ objects: [{ type: "Image", src: "data:image/png;base64,YQ==" }] }), /Unexpected cloud write/);
+test("legacy fabricEdit payloads and non-DOM template sources reject with 400 before uploads or DB writes", async () => {
+  const adminAuth = token(ids.admin);
+  const aliceAuth = token(ids.alice);
+  mock.method(Template, "exists", async () => ({ _id: ids.template }));
+  assert.equal((await request("/api/cards", { auth: aliceAuth, method: "POST", body: { cardName: "Legacy", blank: true, fabricEdit: { objects: [] } } })).status, 400);
+  assert.equal((await request(`/api/cards/${ids.card}`, { auth: aliceAuth, method: "PUT", body: { fabricEdit: { objects: [] } } })).status, 400);
+  assert.equal((await request("/api/templates", { auth: adminAuth, method: "POST", body: { name: "Legacy tpl", fabricEdit: { objects: [] } } })).status, 400);
+  assert.equal((await request(`/api/templates/${ids.template}`, { auth: adminAuth, method: "PUT", body: { name: "Legacy tpl", fabricEdit: { objects: [] } } })).status, 400);
+  mock.method(Template, "findById", () => query({ _id: ids.template, name: "Broken tpl" }));
+  assert.equal((await request("/api/cards", { auth: aliceAuth, method: "POST", body: { cardName: "From broken tpl", templateId: ids.template } })).status, 400);
 });
 test("invalid IDs return 400 and uploads reject remote URLs/SVG before contacting Cloudinary", async () => {
   assert.equal((await request("/api/cards/bad-id", { auth: token(ids.alice) })).status, 400);

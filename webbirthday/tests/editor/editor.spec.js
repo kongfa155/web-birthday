@@ -106,10 +106,15 @@ test("public DOM share is read-only, responsive and keeps privacy metadata", asy
   expect(errors).toEqual([]);
 });
 
-test("legacy Fabric share still renders and revoked links fail", async ({ page }) => {
+test("legacy or unsupported designs fail with an error and revoked links fail", async ({ page }) => {
   const { state, errors } = await setup(page, { record: { cardName: "Thiệp cũ", fabricEdit: { objects: [{ type: "Textbox", left: 0, top: 0, width: 600, text: "Sinh nhật vui vẻ!", fontFamily: "Arial", fontSize: 48 }] } } });
   await page.goto(`/share/${TOKEN}`);
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Định dạng thiết kế không được hỗ trợ" })).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lưu thiết kế", exact: true })).toHaveCount(0);
+  await page.goto(`/edit/cards/${CARD_ID}`);
+  await expect(page.getByRole("heading", { name: "Định dạng thiết kế không được hỗ trợ" })).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lưu thiết kế", exact: true })).toHaveCount(0);
   state.revoked = true;
   await page.goto(`/share/${"b".repeat(43)}`);

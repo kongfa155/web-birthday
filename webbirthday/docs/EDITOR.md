@@ -1,15 +1,15 @@
-# Editor React + HTML/CSS + Moveable
+# Editor React + HTML/CSS + Moveable (DOM Schema v1)
 
 ## Công nghệ và chạy ứng dụng
 
 Editor dùng React/React DOM 19.3.1, `react-moveable` (MIT) để kéo/đổi cỡ/xoay
-phần tử DOM và `html-to-image` (MIT) để xuất PNG. Không dùng Polotno SDK,
-không cần API key hay đăng ký trial. Fabric chỉ phục vụ bộ xem thiệp cũ.
+phần tử DOM và `html-to-image` (MIT) để xuất PNG. Hệ thống **không dùng Polotno SDK
+và đã bỏ hoàn toàn Fabric cùng dependency liên quan**; không cần API key hay đăng ký trial.
 Editor dựng bằng HTML/CSS; xuất PNG dùng raster hóa ngoài màn hình của trình duyệt.
 
 Yêu cầu Node.js 22+. Giữ cấu hình backend `MONGO_URI`, `JWT_SECRET`, `CLOUD_NAME`,
-`CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` hiện có; frontend giữ `VITE_API_URL`
-(nếu có). Không cần biến môi trường mới.
+`CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `GOOGLE_CLIENT_ID` hiện có;
+frontend giữ `VITE_API_URL` và `VITE_GOOGLE_CLIENT_ID` (nếu dùng).
 
 ```bash
 cd webbirthday
@@ -23,95 +23,92 @@ npm run dev
 
 ## Trải nghiệm
 
-Người dùng chọn “Tạo thiệp từ mẫu”, sau đó bắt đầu thiệp mới hoặc chọn mẫu
-đã được admin lưu. Trong editor có thư viện mẫu sinh nhật dựng sẵn, chữ,
-ảnh tải lên, hình khối, nền và danh sách lớp thật. Thiệp có khổ cố định,
-thu phóng để vừa màn hình. Chỉnh nội dung, kéo, đổi kích thước, xoay, undo/redo,
+Người dùng tạo thiệp mới từ mẫu đã được Admin lưu hoặc tạo thiệp trắng (`blank: true`).
+Trong editor có thư viện mẫu sinh nhật dựng sẵn, phần tử chữ, ảnh tải lên,
+hình khối, nền và danh sách lớp thật. Thiệp có khổ cố định, thu phóng để vừa màn hình.
+Hỗ trợ chỉnh nội dung, kéo, đổi kích thước, xoay, undo/redo (tối đa 60 bước, gom thao tác 600 ms),
 lưu và tải PNG. Thiết kế mới dùng một trang; không hỗ trợ animation/video.
 
-Admin tạo mẫu tại `/edit/templates/blank`. Người dùng tạo thiệp từ mẫu sẽ
-nhận bản thuộc tài khoản của mình; lưu thiệp không ghi đè mẫu gốc.
-`/view/cards/:id` và `/share/:token` là các bộ xem chỉ đọc.
+Admin tạo mẫu tại `/edit/templates/blank`. Người dùng tạo thiệp từ mẫu sẽ nhận bản
+thuộc tài khoản của mình; lưu thiệp không ghi đè mẫu gốc.
+`/view/cards/:id` và `/share/:token` là các bộ xem chỉ đọc theo định dạng DOM.
 
-## Dữ liệu
+## Dữ liệu và hạn mức tạo thiệp
 
-Ba trường tùy chọn đã được phê duyệt vào Card và Template:
+Hệ thống chỉ hỗ trợ định dạng DOM (`designFormat: "dom"`) với schema phiên bản 1 (`schemaVersion: 1`):
 
 | Trường | Ý nghĩa |
 | --- | --- |
 | `designUrl` | URL file JSON thiết kế DOM trên Cloudinary |
-| `designFormat` | `dom` cho thiết kế mới |
+| `designFormat` | Giá trị `"dom"` |
 | `previewUrl` | URL ảnh xem trước toàn bộ thiệp |
 
-Giữ `fabricEdit`/`imgURL` cho dữ liệu cũ. Với thiết kế mới `imgURL` chứa
-URL ảnh thành phần; danh sách ưu tiên `previewUrl` để hiển thị thumbnail.
-Không tạo index, chạy migration, xóa hoặc chuyển đổi record cũ.
-Các trường mới được ghi khi người dùng tạo/lưu thiệp qua thao tác CRUD bình thường.
-Thiệp Fabric cũ vẫn xem được; chưa có chuyển đổi tự động có thể làm sai bố cục.
+`imgURL` chứa URL ảnh thành phần; danh sách ưu tiên `previewUrl` để hiển thị thumbnail.
+Không còn hỗ trợ `fabricEdit` hay bộ xem Fabric cũ.
 
-JSON phiên bản 1 gồm `schemaVersion`, `width`, `height`, `background`, `elements`.
+JSON phiên bản 1 (`schemaVersion: 1`) gồm `schemaVersion`, `width`, `height`, `background`, `elements`.
 Ba loại phần tử: `text`, `image`, `shape`, kèm vị trí, kích thước, góc xoay,
-độ mờ và thuộc tính theo loại. Schema chuẩn trong `shared/designSchema.js`.
+độ mờ và thuộc tính theo loại. Schema chuẩn nằm trong `shared/designSchema.js`.
 Không lưu HTML tùy ý hoặc thực thi script từ thiết kế.
+
+### Giới hạn 20 thiệp và Transaction MongoDB
+
+- Chỉ tài khoản **User** bị giới hạn tối đa **20 thiệp** (`MAX_USER_CARDS = 20`); **Admin** được miễn giới hạn này.
+- Khi User tạo thiệp, `createCardWithinQuota` thực hiện trong **MongoDB transaction**:
+  1. Tăng trường `users.__v` sẵn có của tài khoản (với `{ timestamps: false }`) làm khóa tuần tự hóa trên document User.
+  2. Đếm số thiệp hiện có của `owner` và tạo document `Card` mới ngay trong cùng transaction; trả `409 CARD_LIMIT_REACHED` nếu đã đạt 20 thiệp.
+  3. Không thêm index hay trường mới vào schema `User` hoặc `Card`.
+- Thao tác upload/save thiết kế lên Cloudinary (`saveDomDesign`) được cache bằng `preparedDesignPromise` bên ngoài callback retry của `withTransaction`, đảm bảo không upload lặp tài nguyên cloud khi transaction tự động thử lại do xung đột ghi.
 
 ## API và lưu trữ
 
-POST/PUT card/template nhận `design` (JSON nói trên), `preview` (PNG base64),
+POST/PUT card/template nhận `design` (JSON DOM `schemaVersion: 1`), `preview` (PNG base64),
 và `cardName`/`name`, `cardDESC` khi cần. Client không được tự chỉ định
 `designUrl`, `designFormat` hoặc `previewUrl`; backend sinh các giá trị này.
-Tạo thiệp trống của mình qua POST `/api/cards` với `blank: true` và `cardName`.
-Tạo từ mẫu tiếp tục dùng `templateId` để backend tự đọc nguồn.
+Tạo thiệp trống qua `POST /api/cards` với `blank: true` và `cardName`;
+tạo từ mẫu dùng `templateId` để backend tự kiểm tra mẫu DOM hợp lệ và sao chép nguồn.
 
 Backend kiểm tra tối đa 200 phần tử, khổ thiệp 1–4.096 px, kích thước phần tử
 1–8.192 px, ID duy nhất, màu/thuộc tính hợp lệ, URL HTTPS hoặc ảnh raster base64.
-Ảnh base64 tối đa 5 MB; toàn bộ request theo giới hạn 10 MB hiện có.
-Mỗi lần gửi thiết kế phải có thumbnail mới. Kiểm tra quyền trước khi upload.
-Backend không fetch URL tài nguyên bên ngoài do client gửi.
+Ảnh tải lên qua `/api/upload-base64` (PNG/JPEG/JPG/WebP/GIF) tối đa **5 MiB** mỗi ảnh;
+toàn bộ request body theo giới hạn 10 MB. Mỗi lần gửi thiết kế phải có thumbnail mới
+và được kiểm tra quyền trước khi upload. Backend không fetch URL tài nguyên bên ngoài do client gửi.
 
-Ảnh tải lên qua `/api/upload-base64` có xác thực. Thiết kế và thumbnail mới
-được lưu thành tài nguyên Cloudinary riêng, không ghi đè file của mẫu hoặc
-người khác. Nếu upload lỗi, record cũ giữ nguyên. Có thể còn file không được
-tham chiếu nếu bước upload sau hoặc ghi database lỗi; chưa có tác vụ dọn file
-vì tài nguyên có thể được dùng chung.
+Thiết kế và thumbnail mới được lưu thành tài nguyên Cloudinary riêng, không ghi đè
+file của mẫu hoặc người khác. Nếu upload lỗi, bản ghi cũ giữ nguyên.
 
-Link chia sẻ giữ cơ chế token ngẫu nhiên, hash, kiểm soát quyền và thu hồi
-hiện có. Thiết kế được chia sẻ dùng bộ xem theo định dạng.
+Link chia sẻ giữ cơ chế token ngẫu nhiên 32 byte, lưu hash SHA-256 (`shareTokenHash`),
+kiểm soát quyền theo chủ sở hữu và thu hồi qua `DELETE /api/cards/:id/share`.
 
-## Kiểm thử
+## Kiểm thử và trạng thái kiểm chứng
+
+### 1. Kiểm thử cô lập / hồi quy (Mock API, DB, Cloudinary)
 
 ```bash
 cd webbirthday
-npm run build
 npm run lint
+npm run build
+npm run test:editor
 cd backend
 npm test
 ```
 
-Kiểm thử trình duyệt (mock API, không ghi Cloudinary hoặc database thật):
-
-```bash
-cd webbirthday
-npx playwright install chromium
-npm run test:editor
-```
-
-Có thể đặt `PLAYWRIGHT_CHROMIUM_EXECUTABLE` để dùng Chromium đã cài sẵn.
-Các bài kiểm tra bao gồm lưu/thử lại, không ghi đè khi tải lỗi, chỉnh chữ,
-kéo/đổi cỡ/xoay ở mức zoom, undo/redo, tạo mẫu lần đầu, upload/đặt ảnh,
-ảnh hỏng, xuất PNG đúng độ phân giải, mobile và link chia sẻ/thu hồi.
-
-Backend tests dùng mock, không kết nối hoặc sửa database thật.
-`backend/tests/design.test.js` kiểm tra schema, lưu, quyền, lỗi Cloudinary,
-sao chép mẫu và DTO chia sẻ. Kiểm thử trình duyệt cần thêm: tạo từ mẫu,
-sửa tiếng Việt, kéo/đổi cỡ/xoay ở các mức zoom, upload/crop ảnh, undo/redo,
-lưu/tải lại, PNG, mobile, lỗi mạng, thiệp Fabric và link đã thu hồi.
+- **Backend (`npm test`)**: **87/87** bài đạt (dùng mock Mongoose/Cloudinary, không kết nối DB thật), bao gồm kiểm tra schema DOM, quyền sở hữu, upload 5 MiB, chia sẻ thiệp, thống kê Admin và transaction giới hạn 20 thiệp (`card-quota.test.js`, `admin-statistics.test.js`).
+- **Playwright E2E (`npm run test:editor`)**: **17/17** bài đạt (mock API và tài nguyên trình duyệt), kiểm tra lưu/thử lại, mẫu, upload ảnh, zoom/kéo/đổi cỡ/xoay, undo/redo, phím tắt, xuất PNG đúng độ phân giải, mobile và link chia sẻ/thu hồi.
+- **Frontend lint & build**: đạt.
 
 Ảnh bên ngoài cần hỗ trợ CORS để xuất PNG. Editor chờ font/ảnh tải xong
 và báo lỗi khi không xuất được thay vì tải ảnh trắng.
 
+### 2. Kiểm thử tích hợp thật (Real integration)
+
+- Đã kiểm thử thực tế trên `http://localhost:5000` (backend) và `http://localhost:5173` (frontend) kết nối MongoDB `Webbirthday` và Cloudinary thật từ `.env`.
+- Phạm vi dữ liệu kiểm thử được duyệt: 3 tài khoản QA, 23 thiệp, 1 mẫu cùng các tài nguyên mới phát sinh trong lượt kiểm thử.
+
+### 3. CI baseline
+
+- GitHub Actions trên nhánh `dev` tại baseline `399c946` (ngày 27/11/2026) ghi nhận frontend lint/build và backend tests xanh; đây là bằng chứng của mốc baseline trước các thay đổi local hiện tại.
+
 ## Rollback
 
-Giữ các trường mới và file thiết kế khi quay lại bản cũ. Không đổi `designUrl`
-thành `fabricEdit`: hai định dạng không tương thích. Muốn tiếp tục xem các
-thiệp DOM đã tạo, cần giữ backend và bộ xem DOM của bản này. Không xóa dữ liệu
-hoặc tự chuyển ngược sang Fabric. Không có migration để rollback.
+Giữ các trường `designUrl`, `designFormat`, `previewUrl` và tài nguyên thiết kế DOM khi cần quay lui phiên bản. Không có migration để rollback.

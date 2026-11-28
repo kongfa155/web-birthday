@@ -1,0 +1,360 @@
+{
+  "date": "2026-11-28",
+  "branch": "dev",
+  "baselineCommit": "399c946283c20cfe71d8b687396cc320690bc245",
+  "localChangesNotPushed": true,
+  "regression": {
+    "backend": {
+      "passed": 87,
+      "failed": 0
+    },
+    "chromium": {
+      "passed": 17,
+      "failed": 0,
+      "durationSeconds": 41.5,
+      "apiAndAssetsMocked": true
+    },
+    "lint": "PASS",
+    "build": {
+      "status": "PASS",
+      "modules": 287,
+      "warnings": [
+        "Existing background asset path",
+        "Library PURE annotation"
+      ]
+    }
+  },
+  "integration": {
+    "environment": "localhost, MongoDB Webbirthday and Cloudinary from actual .env; no API or storage mocks",
+    "checks": [
+      {
+        "key": "1,75",
+        "caseIds": [
+          1,
+          75
+        ],
+        "title": "Đăng ký thật và xác nhận trên trình duyệt",
+        "status": "PASS",
+        "observed": "Form báo dữ liệu trống và mật khẩu xác nhận sai; đăng ký User thành công, tự đăng nhập; phiên ứng dụng có thời hạn 86400 giây.",
+        "at": "2026-11-28T12:38:45.012Z"
+      },
+      {
+        "key": "4,5",
+        "caseIds": [
+          4,
+          5
+        ],
+        "title": "Đăng ký đồng thời trên MongoDB thật",
+        "status": "PASS",
+        "observed": "Hai yêu cầu cùng tên trả 201 và 409; chỉ tạo một User và bỏ qua quyền Admin tự khai.",
+        "at": "2026-11-28T12:38:45.899Z"
+      },
+      {
+        "key": "2,3,19",
+        "caseIds": [
+          2,
+          3,
+          19
+        ],
+        "title": "Dữ liệu đăng ký và giới hạn tần suất thật",
+        "status": "PASS",
+        "observed": "Tên trùng trả 409, mật khẩu ngắn trả 400 và yêu cầu thứ sáu bị giới hạn 429; không tạo thêm tài khoản.",
+        "at": "2026-11-28T12:38:46.034Z"
+      },
+      {
+        "key": "7,9,10",
+        "caseIds": [
+          7,
+          9,
+          10
+        ],
+        "title": "Đăng nhập và chặn phiên sai trên dữ liệu thật",
+        "status": "PASS",
+        "observed": "Phiên thật xác định đúng User; thiếu phiên, sai chữ ký và mã kiểm thử đã hết hạn bị 401; User bị chặn quản trị 403.",
+        "at": "2026-11-28T12:38:46.294Z"
+      },
+      {
+        "key": "8,32",
+        "caseIds": [
+          8,
+          32
+        ],
+        "title": "Khóa/mở tài khoản thử và ngăn tự khóa Admin",
+        "status": "PASS",
+        "observed": "User thử bị khóa không đăng nhập hoặc dùng phiên cũ; mở lại hoạt động; Admin tự khóa nhận 400, trạng thái tài khoản được giữ.",
+        "at": "2026-11-28T12:38:46.892Z"
+      },
+      {
+        "key": "15",
+        "caseIds": [
+          15
+        ],
+        "title": "Cấu hình và challenge Google thật",
+        "status": "PASS",
+        "observed": "Cấu hình thật cấp mã dùng một lần hạn 300 giây và cookie HttpOnly; nguồn trang không tin cậy bị 403. Chưa chứng minh toàn bộ biến thể xác minh Google bằng ca này.",
+        "at": "2026-11-28T12:38:46.925Z"
+      },
+      {
+        "key": "24,25,26,33",
+        "caseIds": [
+          24,
+          25,
+          26,
+          33
+        ],
+        "title": "Tạo mẫu và thiệp qua ứng dụng thật",
+        "status": "PASS",
+        "observed": "Admin lưu mẫu thật trên Cloudinary; User không sửa mẫu; thiệp tạo từ mẫu và thiệp trắng thuộc đúng User, trình duyệt mở đúng editor.",
+        "at": "2026-11-28T12:38:51.710Z"
+      },
+      {
+        "key": "21,22,29",
+        "caseIds": [
+          21,
+          22,
+          29
+        ],
+        "title": "Quyền sở hữu thiệp trên cơ sở dữ liệu thật",
+        "status": "PASS",
+        "observed": "User khác và Admin đều bị chặn đọc, sửa, xóa thiệp của User A; giả chủ sở hữu bị từ chối.",
+        "at": "2026-11-28T12:38:52.575Z"
+      },
+      {
+        "key": "34,35",
+        "caseIds": [
+          34,
+          35
+        ],
+        "title": "Tải ảnh lên Cloudinary thật và chặn dữ liệu sai",
+        "status": "PASS",
+        "observed": "Ảnh PNG được tải thật và URL CDN truy cập được; URL từ xa, SVG và dữ liệu sai bị chặn trước khi lưu.",
+        "at": "2026-11-28T12:38:54.879Z"
+      },
+      {
+        "key": "18",
+        "caseIds": [
+          18
+        ],
+        "title": "Tài khoản Google thật không dùng mật khẩu cục bộ",
+        "status": "PASS",
+        "observed": "Tài khoản Google sẵn có bị từ chối đăng nhập mật khẩu bằng thông báo chung, không phát sinh lỗi máy chủ; không thay đổi tài khoản này.",
+        "at": "2026-11-28T12:38:54.999Z"
+      },
+      {
+        "key": "27-image",
+        "caseIds": [
+          "27-image"
+        ],
+        "title": "Ảnh thật được gắn vào thiết kế, mẫu gốc không đổi",
+        "status": "PASS",
+        "observed": "Thiệp lưu ảnh HTTPS đã tải thật lên Cloudinary trong thiết kế DOM; đường dẫn thiết kế mẫu gốc không đổi.",
+        "at": "2026-11-28T12:38:58.081Z"
+      },
+      {
+        "key": "27,54,55,62,69",
+        "caseIds": [
+          27,
+          54,
+          55,
+          62,
+          69
+        ],
+        "title": "Sửa và lưu tiếng Việt qua trình duyệt thật",
+        "status": "PASS",
+        "observed": "Sửa chữ có dấu, lưu thật lên Cloudinary, tải lại trình duyệt và đọc JSON CDN đều giữ đúng nội dung.",
+        "at": "2026-11-28T12:39:04.767Z"
+      },
+      {
+        "key": "77",
+        "caseIds": [
+          77
+        ],
+        "title": "Giới hạn 20 thiệp kể cả khi tạo đồng thời",
+        "status": "PASS",
+        "observed": "Tại 19 thiệp, hai yêu cầu tạo đồng thời trả 201 và 409; dữ liệu thật chỉ có 20 thiệp, không vượt hạn mức.",
+        "at": "2026-11-28T12:39:10.292Z"
+      },
+      {
+        "key": "77-ui",
+        "caseIds": [
+          "77-ui"
+        ],
+        "title": "Thông báo hạn mức trên giao diện thật",
+        "status": "PASS",
+        "observed": "Khi đủ 20 thiệp, thao tác tạo trên giao diện nhận 409 và hiển thị rõ giới hạn 20 thiệp.",
+        "at": "2026-11-28T12:39:11.739Z"
+      },
+      {
+        "key": "38,39,40",
+        "caseIds": [
+          38,
+          39,
+          40
+        ],
+        "title": "Phân trang thật và dữ liệu không hợp lệ",
+        "status": "PASS",
+        "observed": "Hai trang liên tiếp có 5 mục mỗi trang, không trùng mã; tham số sai bị 400; danh sách mẫu phân trang hoạt động.",
+        "at": "2026-11-28T12:39:12.444Z"
+      },
+      {
+        "key": "44,45,46,47,48,49,50,52",
+        "caseIds": [
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          52
+        ],
+        "title": "Chia sẻ và thu hồi thiệp với dữ liệu thật",
+        "status": "PASS",
+        "observed": "Link thật mở đúng thiệp DOM chỉ đọc trên mobile; không lộ thông tin chủ hoặc mã băm; đổi, tắt lặp và xóa thiệp đều thu hồi link cũ, các thiết lập bảo mật đúng.",
+        "at": "2026-11-28T12:39:15.156Z"
+      },
+      {
+        "key": "53",
+        "caseIds": [
+          53
+        ],
+        "title": "Hộp thoại chia sẻ thật",
+        "status": "PASS",
+        "observed": "Hộp thoại tạo và tắt liên kết qua API thật; hiển thị URL hợp lệ và trạng thái tắt sau khi thu hồi.",
+        "at": "2026-11-28T12:39:22.964Z"
+      },
+      {
+        "key": "43",
+        "caseIds": [
+          43
+        ],
+        "title": "Đo đọc thật ở mức đồng thời 20",
+        "status": "PASS",
+        "observed": {
+          "concurrency": 20,
+          "total": 200,
+          "errors": 0,
+          "list": {
+            "requests": 100,
+            "p50Ms": 267.42,
+            "p95Ms": 918.33
+          },
+          "cardDetail": {
+            "requests": 50,
+            "p50Ms": 481.68,
+            "p95Ms": 924.65
+          },
+          "cloudinaryJson": {
+            "requests": 50,
+            "p50Ms": 73.61,
+            "p95Ms": 259.82
+          }
+        },
+        "at": "2026-11-28T12:39:32.452Z"
+      },
+      {
+        "key": "36,51",
+        "caseIds": [
+          36,
+          51
+        ],
+        "title": "Giới hạn tải ảnh và xem công khai trên máy chủ thật",
+        "status": "PASS",
+        "observed": "Các yêu cầu ảnh sai không tạo file thật nhưng vẫn được tính tần suất; vượt ngưỡng trả 429 và Retry-After. Chức năng xem công khai cũng áp dụng giới hạn thật.",
+        "at": "2026-11-28T12:39:34.225Z"
+      },
+      {
+        "key": "29-recreate",
+        "caseIds": [
+          "29-recreate"
+        ],
+        "title": "Xóa thiệp giải phóng một chỗ trong hạn mức",
+        "status": "PASS",
+        "observed": "Xóa một thiệp riêng rồi tạo lại thành công; số thiệp thực tế của User vẫn là 20.",
+        "at": "2026-11-28T12:39:34.783Z"
+      },
+      {
+        "key": "76",
+        "caseIds": [
+          76
+        ],
+        "title": "Đăng xuất và chặn quay lại trên trình duyệt",
+        "status": "PASS",
+        "observed": "Đăng xuất xóa phiên; quay lại không lộ dữ liệu riêng và mở trực tiếp danh sách thiệp bị chuyển về đăng nhập.",
+        "at": "2026-11-28T12:40:44.348Z"
+      },
+      {
+        "key": "30,31,78",
+        "caseIds": [
+          30,
+          31,
+          78
+        ],
+        "title": "Thống kê thật, tìm kiếm và sắp xếp quản trị",
+        "status": "PASS",
+        "observed": "Tổng User loại trừ cả Admin thật và Admin thử; tổng thiệp khớp MongoDB. Bảng không có số file/nội dung riêng, tìm tên và sắp xếp tăng/giảm đúng.",
+        "at": "2026-11-28T12:44:17.795Z"
+      }
+    ],
+    "performance": {
+      "concurrency": 20,
+      "total": 200,
+      "errors": 0,
+      "list": {
+        "requests": 100,
+        "p50Ms": 267.42,
+        "p95Ms": 918.33
+      },
+      "cardDetail": {
+        "requests": 50,
+        "p50Ms": 481.68,
+        "p95Ms": 924.65
+      },
+      "cloudinaryJson": {
+        "requests": 50,
+        "p50Ms": 73.61,
+        "p95Ms": 259.82
+      }
+    },
+    "fixtures": {
+      "users": 3,
+      "cumulativeCards": 23,
+      "templates": 1,
+      "cloudAssets": 7
+    },
+    "cleanup": {
+      "status": "PASS",
+      "baselinePreserved": true,
+      "afterCounts": {
+        "users": 2,
+        "cards": 1,
+        "templates": 0
+      },
+      "oldCloudinaryAssetsUntouched": true
+    }
+  },
+  "googleFullBrowserSignIn": {
+    "status": "PASS",
+    "scope": "Returning Google account already in production; no new account created",
+    "observed": [
+      "Chrome Google account selection completed using keyboard",
+      "Redirected to /cards and displayed existing single card",
+      "Reload revalidated session and retained same card list",
+      "Logged out after verification"
+    ],
+    "afterCounts": {
+      "users": 2,
+      "cards": 1,
+      "templates": 0
+    },
+    "sessionLifetimeEvidence": "Google uses shared createSession with expiresIn 1d; common session lifetime 86400 seconds was checked by real registration. No Google token was extracted from browser."
+  },
+  "remoteCI": {
+    "url": "https://github.com/kongfa155/web-birthday/actions/runs/45952106832",
+    "commit": "399c946",
+    "date": "2026-11-27",
+    "status": "SUCCESS",
+    "appliesTo": "Baseline only"
+  },
+  "scopeNote": "Case IDs group related checks; individual document rows distinguish actual integration variants from isolated regression. Production secrets, tokens, usernames and asset URLs are excluded."
+}

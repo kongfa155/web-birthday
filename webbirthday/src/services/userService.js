@@ -7,6 +7,11 @@ export const getUsers = async () => {
   return res.data;
 };
 
+export const getUserStats = async () => {
+  const res = await axios.get(`${API_URL}/stats`);
+  return res.data;
+};
+
 export const updateUserStatus = async (id, isActive) => {
   const res = await axios.put(`${API_URL}/${id}`, { isActive });
   return res.data.user;

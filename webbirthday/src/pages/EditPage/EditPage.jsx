@@ -9,7 +9,6 @@ import {
   isDomDesign,
 } from "../../services/designService.js";
 import DomDesignViewer from "../../components/design/DomDesignViewer.jsx";
-import LegacyFabricViewer from "../../components/design/LegacyFabricViewer.jsx";
 import DomEditor from "./DomEditor.jsx";
 import styles from "./EditPage.module.css";
 
@@ -26,7 +25,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
     record: null,
     kind: "empty",
     designJson: null,
-    legacySource: null,
     errorMessage: "",
   });
   const [retryCount, setRetryCount] = useState(0);
@@ -48,7 +46,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
         record: { name: "Mẫu thiệp mới" },
         kind: "dom-blank",
         designJson: null,
-        legacySource: null,
         errorMessage: "",
       });
       return;
@@ -64,7 +61,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
       record: null,
       kind: "empty",
       designJson: null,
-      legacySource: null,
       errorMessage: "",
     });
 
@@ -87,20 +83,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
 
       const classified = classifyRecordDesign(record);
 
-      if (classified.kind === "legacy-fabric") {
-        setLoadState({
-          status: "ready",
-          recordId: id,
-          editorKey: id,
-          record,
-          kind: "legacy-fabric",
-          designJson: null,
-          legacySource: classified.source,
-          errorMessage: "",
-        });
-        return;
-      }
-
       if (classified.kind === "unsupported") {
         setLoadState({
           status: "ready",
@@ -109,7 +91,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
           record,
           kind: "unsupported",
           designJson: null,
-          legacySource: null,
           errorMessage:
             "Định dạng thiết kế này không được trình chỉnh sửa hiện tại hỗ trợ. Hệ thống không tự động chuyển đổi hoặc thay bằng trang trắng để tránh mất dữ liệu.",
         });
@@ -136,7 +117,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
           record,
           kind: "dom",
           designJson: parsed,
-          legacySource: null,
           errorMessage: "",
         });
         return;
@@ -149,7 +129,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
         record,
         kind: "empty",
         designJson: null,
-        legacySource: null,
         errorMessage: "",
       });
     }
@@ -165,7 +144,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
         record: null,
         kind: "empty",
         designJson: null,
-        legacySource: null,
         errorMessage:
           err?.response?.data?.message ||
           err?.message ||
@@ -236,44 +214,6 @@ export default function EditPage({ viewOnly = false, editorMode = "cards" }) {
               </Link>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (loadState.kind === "legacy-fabric") {
-    return (
-      <div className={styles.pageShell}>
-        <div className={styles.viewOnlyHeader}>
-          <div className={styles.viewOnlyTitleGroup}>
-            <Link to={backPath} className={styles.backButton}>
-              <FaArrowLeft /> Quay lại
-            </Link>
-            <div>
-              <h1 className={styles.viewOnlyTitle}>{recordTitle}</h1>
-              {loadState.record?.cardDESC && (
-                <p className={styles.viewOnlyDesc}>{loadState.record.cardDESC}</p>
-              )}
-            </div>
-          </div>
-          <span className={styles.readOnlyBadge}>Định dạng cũ • Chỉ xem</span>
-        </div>
-
-        <div className={styles.legacyBanner} role="note">
-          <p className={styles.legacyNoticeText}>
-            Thiệp này được tạo bằng trình chỉnh sửa cũ. Bạn có thể xem lại
-            bên dưới hoặc tạo thiệp mới từ thư viện mẫu.
-          </p>
-          <Link to={backPath} className={styles.backButton}>
-            Về danh sách
-          </Link>
-        </div>
-
-        <div className={styles.editorArea}>
-          <LegacyFabricViewer
-            source={loadState.legacySource}
-            title={recordTitle}
-          />
         </div>
       </div>
     );

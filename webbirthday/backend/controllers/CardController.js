@@ -2,17 +2,10 @@
 import Card from "../models/Card.js";
 import Template from "../models/Template.js";
 import mongoose from "mongoose";
-import { processFabricEditImages } from "../utils/processFabricEdit.js";
-import { uploadFabricJSON } from "../utils/uploadFabricJSON.js";
 import { editableCards, readableCards } from "../utils/cardAccess.js";
 import { parsePage, listPage, CARD_LIST_FIELDS } from "../utils/listPage.js";
 import { DesignInputError, validateDesignRequest, saveDomDesign } from "../utils/designDocument.js";
-
-function parseDesign(value) {
-  const design = typeof value === "string" ? JSON.parse(value) : value;
-  if (!design || typeof design !== "object" || !Array.isArray(design.objects)) throw new SyntaxError("Invalid design");
-  return design;
-}
+import { createCardWithinQuota, CardCreationError } from "../utils/cardCreationQuota.js";
 
 const CardController = {
   // [GET] /api/cards
@@ -42,7 +35,7 @@ const CardController = {
   // [POST] /api/cards
   create: async (req, res) => {
     try {
-      const { cardName, imgURL, cardDESC, fabricEdit } = req.body;
+      const { cardName, imgURL, cardDESC } = req.body;
       if (typeof cardName !== "string" || !cardName.trim()) return res.status(400).json({ message: "Vui lòng nhập tên thiệp." });
       if (req.body.owner && String(req.body.owner) !== String(req.user._id)) return res.status(403).json({ message: "Không thể tạo thiệp thay cho tài khoản khác." });
 
@@ -52,49 +45,50 @@ const CardController = {
         if (typeof req.body.templateId !== "string" || !mongoose.isObjectIdOrHexString(req.body.templateId)) return res.status(400).json({ message: "Mã mẫu không hợp lệ." });
         source = await Template.findById(req.body.templateId);
         if (!source) return res.status(404).json({ message: "Không tìm thấy mẫu thiệp." });
+        if (source.designFormat !== "dom" || !source.designUrl) {
+          return res.status(400).json({ message: "Mẫu thiệp không sử dụng định dạng DOM hợp lệ." });
+        }
       } else if (!req.user.isAdmin && req.body.blank !== true) {
         return res.status(400).json({ message: "Vui lòng chọn mẫu thiệp." });
       }
 
       const domDesign = validateDesignRequest(req.body);
 
-      let fabricURL = source?.fabricEdit;
-      let imgURLs = source?.imgURL || imgURL || [];
-      let designFields = source?.designUrl ? {
+      const imgURLs = source?.imgURL || imgURL || [];
+      const designFields = source?.designUrl ? {
         designUrl: source.designUrl, designFormat: source.designFormat, previewUrl: source.previewUrl,
       } : {};
-      if (source?.designUrl && fabricEdit !== undefined) return res.status(400).json({ message: "Mẫu hiện tại không nhận dữ liệu Fabric." });
-      if (domDesign) designFields = await saveDomDesign(domDesign, req.body.preview);
 
-      if (fabricEdit !== undefined) {
-        const fabricEditObj =
-          parseDesign(fabricEdit);
+      // Lazy-cache external uploads outside the retryable transaction callback
+      // so write-conflict retries never duplicate Cloudinary assets.
+      let preparedDesignPromise = null;
+      const getPreparedDesign = () => {
+        if (!domDesign) return Promise.resolve(null);
+        if (!preparedDesignPromise) {
+          preparedDesignPromise = saveDomDesign(domDesign, req.body.preview);
+        }
+        return preparedDesignPromise;
+      };
 
-        // Upload tất cả ảnh trong canvas
-        const { fabricEdit: processedEdit, imgURLs: uploadedImgs } =
-          await processFabricEditImages(fabricEditObj);
-
-        // Upload JSON canvas lên Cloudinary
-        const fabricJSONStr = JSON.stringify(processedEdit);
-        fabricURL = await uploadFabricJSON(fabricJSONStr, cardName);
-
-        imgURLs = uploadedImgs;
-      }
-
-      const newCard = new Card({
-        cardName,
-        imgURL: imgURLs,
-        cardDESC,
-        fabricEdit: fabricURL,
-        ...designFields,
-        owner: req.user._id,
-        isEditable: true, // mặc định mới tạo là có thể chỉnh sửa
+      const createdCard = await createCardWithinQuota(req.user, async (session) => {
+        const uploadedDesign = await getPreparedDesign();
+        const resolvedDesignFields = uploadedDesign || designFields;
+        const newCard = new Card({
+          cardName,
+          imgURL: imgURLs,
+          cardDESC,
+          ...resolvedDesignFields,
+          owner: req.user._id,
+          isEditable: true, // mặc định mới tạo là có thể chỉnh sửa
+        });
+        return session ? newCard.save({ session }) : newCard.save();
       });
 
-      await newCard.save();
-
-      res.status(201).json({ message: "Card created", card: newCard });
+      res.status(201).json({ message: "Card created", card: createdCard });
     } catch (error) {
+      if (error instanceof CardCreationError) {
+        return res.status(error.status).json({ message: error.message, code: error.code });
+      }
       if (error instanceof SyntaxError || error instanceof DesignInputError) return res.status(400).json({ message: error.message });
       res.status(500).json({ message: "Không thể tạo thiệp." });
     }
@@ -104,7 +98,7 @@ const CardController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { cardName, imgURL, cardDESC, fabricEdit, owner, isEditable } =
+      const { cardName, imgURL, cardDESC, owner, isEditable } =
         req.body;
       // Check access before parsing designs or uploading any content.
       const filter = { _id: id, ...editableCards(req.user) };
@@ -114,7 +108,6 @@ const CardController = {
       if (typeof isEditable !== "undefined" && typeof isEditable !== "boolean") return res.status(400).json({ message: "Trạng thái thiệp không hợp lệ." });
       if (cardName !== undefined && (typeof cardName !== "string" || !cardName.trim())) return res.status(400).json({ message: "Tên thiệp không hợp lệ." });
       const domDesign = validateDesignRequest(req.body);
-      if (existing.designUrl && fabricEdit !== undefined) return res.status(400).json({ message: "Thiệp DOM không nhận dữ liệu Fabric." });
       const updatedFields = {};
       for (const [key, value] of Object.entries({ cardName, imgURL, cardDESC })) {
         if (value !== undefined) updatedFields[key] = value;
@@ -125,21 +118,6 @@ const CardController = {
         updatedFields.isEditable = isEditable;
       }
       if (domDesign) Object.assign(updatedFields, await saveDomDesign(domDesign, req.body.preview));
-
-      // Chỉ xử lý Fabric JSON khi gửi dữ liệu mới
-      if (fabricEdit !== undefined) {
-        const fabricEditObj =
-          parseDesign(fabricEdit);
-
-        const { fabricEdit: processedEdit, imgURLs: uploadedImgs } =
-          await processFabricEditImages(fabricEditObj);
-
-        const fabricJSONStr = JSON.stringify(processedEdit);
-        const fabricURL = await uploadFabricJSON(fabricJSONStr, cardName);
-
-        updatedFields.fabricEdit = fabricURL;
-        updatedFields.imgURL = uploadedImgs;
-      }
 
       const updatedCard = await Card.findOneAndUpdate(filter, updatedFields, {
         new: true,

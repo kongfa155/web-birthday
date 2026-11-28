@@ -4,7 +4,7 @@ import Modal from "react-bootstrap/Modal";
 import { toast } from "react-toastify";
 import { postCreateNewUser } from "../../../services/userService";
 
-const ModalCreateUser = ({ show, setShow }) => {
+const ModalCreateUser = ({ show, setShow, onUserCreated }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("USER");
@@ -27,6 +27,7 @@ const ModalCreateUser = ({ show, setShow }) => {
 
       if (response.data?.message === "User created successfully") {
         toast.success("Tạo tài khoản thành công");
+        onUserCreated?.();
         handleClose();
       } else {
         toast.error(response.data?.message || "Lỗi không xác định");
